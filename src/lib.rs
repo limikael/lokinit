@@ -3,6 +3,15 @@ mod event;
 pub mod fs;
 pub mod graphics;
 
+#[cfg(feature = "skia")]
+pub mod skia;
+
+#[cfg(not(feature = "skia"))]
+pub mod skia {
+    // just to make things a bit less tedious
+    pub type SkiaContext = ();
+}
+
 pub mod native;
 
 #[cfg(feature = "log-impl")]
@@ -37,6 +46,7 @@ pub mod date {
 
 use std::cell::RefCell;
 thread_local! {
+    #[allow(clippy::type_complexity)]
     static NATIVE_DISPLAY: RefCell<Option<fn (&mut dyn FnMut(&mut dyn crate::NativeDisplay))>> = RefCell::new(None);
 }
 pub(crate) fn with_native_display(f: &mut dyn FnMut(&mut dyn crate::NativeDisplay)) {
