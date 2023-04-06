@@ -13,7 +13,11 @@ readme="README.md"
 keywords = ["graphics", "3D", "opengl", "gamedev", "windowing"]
 categories = ["rendering::graphics-api"]
 
+[dependencies]
+skia-safe = { version = "0.60.0", optional = true }
+
 [features]
+skia = ["skia-safe/gl"]
 
 # Optional log-rs like macros implementation
 # disabled by default
@@ -36,3 +40,9 @@ objc = "0.2"
 glam = {version = "0.14", features = ["scalar-math"] }
 quad-rand = "0.1"
 
+[[example]]
+name = "skia"
+required-features = ["skia"]
+
+[package.metadata.android.activity_attributes]
+"android:exported" = "true"

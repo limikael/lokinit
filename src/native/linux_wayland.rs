@@ -320,7 +320,11 @@ unsafe extern "C" fn xdg_toplevel_handle_configure(
             }
         });
         if let Some(ref mut event_handler) = payload.event_handler {
-            event_handler.resize_event(width as _, height as _);
+            // TODO: resize event needs a skia context
+            #[cfg(not(feature = "skia"))]
+            {
+                event_handler.resize_event(&mut (), width as _, height as _);
+            }
         }
     }
 }
@@ -512,8 +516,12 @@ where
             (client.wl_display_dispatch_pending)(wdisplay);
 
             if let Some(ref mut event_handler) = payload.event_handler {
-                event_handler.update();
-                event_handler.draw();
+                // TODO: handle Skia here
+                #[cfg(not(feature = "skia"))]
+                {
+                    event_handler.update(&mut ());
+                    event_handler.draw(&mut ());
+                }
             }
 
             (libegl.eglSwapBuffers.unwrap())(egl_display, egl_surface);

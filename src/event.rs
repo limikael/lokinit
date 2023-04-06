@@ -154,7 +154,9 @@ pub enum TouchPhase {
     Cancelled,
 }
 
-/// A trait defining event callbacks.
+use crate::skia::SkiaContext;
+
+/// A trait defining event callbacks (with SkiaContext passed as parameter).
 pub trait EventHandler {
     /// On most platforms update() and draw() are called each frame, sequentially,
     /// draw right after update.
@@ -163,59 +165,61 @@ pub trait EventHandler {
     /// When the app is in background, Android destroys the rendering surface,
     /// while app is still alive and can do some usefull calculations.
     /// Note that in this case drawing from update may lead to crashes.
-    fn update(&mut self);
-    fn draw(&mut self);
-    fn resize_event(&mut self, _width: f32, _height: f32) {}
-    fn mouse_motion_event(&mut self, _x: f32, _y: f32) {}
-    fn mouse_wheel_event(&mut self, _x: f32, _y: f32) {}
-    fn mouse_button_down_event(&mut self, _button: MouseButton, _x: f32, _y: f32) {}
-    fn mouse_button_up_event(&mut self, _button: MouseButton, _x: f32, _y: f32) {}
+    fn update(&mut self, _skia_ctx: &mut SkiaContext);
 
-    fn char_event(&mut self, _character: char, _keymods: KeyMods, _repeat: bool) {}
+    fn draw(&mut self, skia_ctx: &mut SkiaContext);
 
-    fn key_down_event(&mut self, _keycode: KeyCode, _keymods: KeyMods, _repeat: bool) {}
+    fn resize_event(&mut self, _skia_ctx: &mut SkiaContext, _width: f32, _height: f32) {}
+    fn mouse_motion_event(&mut self, _skia_ctx: &mut SkiaContext, _x: f32, _y: f32) {}
+    fn mouse_wheel_event(&mut self, _skia_ctx: &mut SkiaContext, _x: f32, _y: f32) {}
+    fn mouse_button_down_event(&mut self, _skia_ctx: &mut SkiaContext, _button: MouseButton, _x: f32, _y: f32) {}
+    fn mouse_button_up_event(&mut self, _skia_ctx: &mut SkiaContext, _button: MouseButton, _x: f32, _y: f32) {}
 
-    fn key_up_event(&mut self, _keycode: KeyCode, _keymods: KeyMods) {}
+    fn char_event(&mut self, _skia_ctx: &mut SkiaContext, _character: char, _keymods: KeyMods, _repeat: bool) {}
 
-    /// Default implementation emulates mouse clicks
-    fn touch_event(&mut self, phase: TouchPhase, _id: u64, x: f32, y: f32) {
+    fn key_down_event(&mut self, _skia_ctx: &mut SkiaContext, _keycode: KeyCode, _keymods: KeyMods, _repeat: bool) {}
+
+    fn key_up_event(&mut self, _skia_ctx: &mut SkiaContext, _keycode: KeyCode, _keymods: KeyMods) {}
+
+    ///  &mutDefault implementation emulates mouse clicks
+    fn touch_event(&mut self, skia_ctx: &mut SkiaContext, phase: TouchPhase, _id: u64, x: f32, y: f32) {
         if phase == TouchPhase::Started {
-            self.mouse_button_down_event(MouseButton::Left, x, y);
+            self.mouse_button_down_event(skia_ctx, MouseButton::Left, x, y);
         }
 
         if phase == TouchPhase::Ended {
-            self.mouse_button_up_event(MouseButton::Left, x, y);
+            self.mouse_button_up_event(skia_ctx, MouseButton::Left, x, y);
         }
 
         if phase == TouchPhase::Moved {
-            self.mouse_motion_event(x, y);
+            self.mouse_motion_event(skia_ctx, x, y);
         }
     }
 
     /// Represents raw hardware mouse motion event
     /// Note that these events are delivered regardless of input focus and not in pixels, but in
     /// hardware units instead. And those units may be different from pixels depending on the target platform
-    fn raw_mouse_motion(&mut self, _dx: f32, _dy: f32) {}
+    fn raw_mouse_motion(&mut self, _skia_ctx: &mut SkiaContext, _dx: f32, _dy: f32) {}
 
     /// Window has been minimized
     /// Right now is only implemented on Android, and is called on a Pause ndk callback
-    fn window_minimized_event(&mut self) {}
+    fn window_minimized_event(&mut self, _skia_ctx: &mut SkiaContext) {}
 
     /// Window has been restored
     /// Right now is only implemented on Android, and is called on a Resume ndk callback
-    fn window_restored_event(&mut self) {}
+    fn window_restored_event(&mut self, _skia_ctx: &mut SkiaContext) {}
 
     /// This event is sent when the userclicks the window's close button
     /// or application code calls the ctx.request_quit() function. The event
     /// handler callback code can handle this event by calling
     /// ctx.cancel_quit() to cancel the quit.
     /// If the event is ignored, the application will quit as usual.
-    fn quit_requested_event(&mut self) {}
+    fn quit_requested_event(&mut self, _skia_ctx: &mut SkiaContext) {}
 
     /// A file has been dropped over the application.
     /// Applications can request the number of dropped files with
     /// `ctx.dropped_file_count()`, path of an individual file with
     /// `ctx.dropped_file_path()`, and for wasm targets the file bytes
     /// can be requested with `ctx.dropped_file_bytes()`.
-    fn files_dropped_event(&mut self) {}
+    fn files_dropped_event(&mut self, _skia_ctx: &mut SkiaContext) {}
 }

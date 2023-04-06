@@ -13,10 +13,14 @@ use crate::{
     event::EventHandler,
     gl,
     native::{egl, NativeDisplayData},
+    skia::SkiaContext,
     CursorIcon,
 };
 
 use libx11::*;
+
+#[cfg(feature = "skia")]
+use skia_safe::gpu::{gl::FramebufferInfo, DirectContext};
 
 use std::collections::HashMap;
 
@@ -40,6 +44,8 @@ pub struct X11MainLoopData {
     display: *mut Display,
     root: Window,
     repeated_keycodes: [bool; 256],
+
+    skia_ctx: Option<SkiaContext>,
 }
 
 pub mod tl_display {
@@ -313,6 +319,8 @@ impl X11Display {
 
 impl X11MainLoopData {
     unsafe fn process_event(&mut self, event: &mut XEvent, event_handler: &mut dyn EventHandler) {
+        let skia_ctx = self.skia_ctx.as_mut().unwrap();
+
         match (*event).type_0 {
             2 => {
                 let keycode = (*event).xkey.keycode as libc::c_int;
@@ -331,17 +339,17 @@ impl X11MainLoopData {
                 let chr = keycodes::keysym_to_unicode(keysym);
                 if chr > 0 {
                     if let Some(chr) = std::char::from_u32(chr as u32) {
-                        event_handler.char_event(chr, mods, repeat);
+                        event_handler.char_event(skia_ctx, chr, mods, repeat);
                     }
                 }
-                event_handler.key_down_event(key, mods, repeat);
+                event_handler.key_down_event(skia_ctx, key, mods, repeat);
             }
             3 => {
                 let keycode = (*event).xkey.keycode;
                 let key = keycodes::translate_key(&mut self.libx11, self.display, keycode as _);
                 self.repeated_keycodes[(keycode & 0xff) as usize] = false;
                 let mods = keycodes::translate_mod((*event).xkey.state as libc::c_int);
-                event_handler.key_up_event(key, mods);
+                event_handler.key_up_event(skia_ctx, key, mods);
             }
             4 => {
                 let btn = keycodes::translate_mouse_button((*event).xbutton.button as _);
@@ -349,20 +357,20 @@ impl X11MainLoopData {
                 let y = (*event).xmotion.y as libc::c_float;
 
                 if btn != crate::event::MouseButton::Unknown {
-                    event_handler.mouse_button_down_event(btn, x, y);
+                    event_handler.mouse_button_down_event(skia_ctx, btn, x, y);
                 } else {
                     match (*event).xbutton.button {
                         4 => {
-                            event_handler.mouse_wheel_event(0.0, 1.0);
+                            event_handler.mouse_wheel_event(skia_ctx, 0.0, 1.0);
                         }
                         5 => {
-                            event_handler.mouse_wheel_event(0.0, -1.0);
+                            event_handler.mouse_wheel_event(skia_ctx, 0.0, -1.0);
                         }
                         6 => {
-                            event_handler.mouse_wheel_event(1.0, 0.0);
+                            event_handler.mouse_wheel_event(skia_ctx, 1.0, 0.0);
                         }
                         7 => {
-                            event_handler.mouse_wheel_event(-1.0, 0.0);
+                            event_handler.mouse_wheel_event(skia_ctx, -1.0, 0.0);
                         }
                         _ => {}
                     }
@@ -374,7 +382,7 @@ impl X11MainLoopData {
                 let y = (*event).xmotion.y as libc::c_float;
 
                 if btn != crate::event::MouseButton::Unknown {
-                    event_handler.mouse_button_up_event(btn, x, y);
+                    event_handler.mouse_button_up_event(skia_ctx, btn, x, y);
                 }
             }
             7 => {
@@ -386,7 +394,7 @@ impl X11MainLoopData {
             6 => {
                 let x = (*event).xmotion.x as libc::c_float;
                 let y = (*event).xmotion.y as libc::c_float;
-                event_handler.mouse_motion_event(x, y);
+                event_handler.mouse_motion_event(skia_ctx, x, y);
             }
             22 => {
                 if (*event).xconfigure.width != tl_display::with(|d| d.data.screen_width)
@@ -398,7 +406,7 @@ impl X11MainLoopData {
                         d.data.screen_width = width;
                         d.data.screen_height = height;
                     });
-                    event_handler.resize_event(width as _, height as _);
+                    event_handler.resize_event(skia_ctx, width as _, height as _);
                 }
             }
             33 => {
@@ -428,14 +436,14 @@ impl X11MainLoopData {
             {
                 if (*event).xcookie.evtype == xi_input::XI_RawMotion {
                     let (dx, dy) = self.libxi.read_cookie(&mut (*event).xcookie, self.display);
-                    event_handler.raw_mouse_motion(dx as f32, dy as f32);
+                    event_handler.raw_mouse_motion(skia_ctx, dx as f32, dy as f32);
                 }
             }
             _ => {}
         };
 
         if tl_display::with(|d| d.data.quit_requested && !d.data.quit_ordered) {
-            event_handler.quit_requested_event();
+            event_handler.quit_requested_event(skia_ctx);
             tl_display::with(|d| {
                 if d.data.quit_requested {
                     d.data.quit_ordered = true
@@ -485,6 +493,42 @@ where
         tl_display::with(|d| d.set_fullscreen(window, true));
     }
 
+    #[cfg(not(feature = "skia"))]
+    {
+        display.skia_ctx = Some(());
+    }
+
+    #[cfg(feature = "skia")]
+    {
+        use std::convert::TryInto;
+
+        let interface = skia_safe::gpu::gl::Interface::new_load_with(|proc| {
+            if proc == "eglGetCurrentDisplay" {
+                return std::ptr::null();
+            }
+            match glx.libgl.get_procaddr(proc) {
+                Some(procaddr) => procaddr as *const libc::c_void,
+                None => std::ptr::null(),
+            }
+        })
+        .expect("Failed to create Skia <-> OpenGL interface");
+
+        let dctx = DirectContext::new_gl(Some(interface), None)
+            .expect("Failed to create Skia's direct context");
+
+        let fb_info = {
+            let mut fboid: gl::GLint = 0;
+            unsafe { gl::glGetIntegerv(gl::GL_FRAMEBUFFER_BINDING, &mut fboid) };
+
+            FramebufferInfo {
+                fboid: fboid.try_into().unwrap(),
+                format: gl::GL_RGBA8,
+            }
+        };
+
+        display.skia_ctx = Some(SkiaContext::new(dctx, fb_info, w, h));
+    };
+
     let mut event_handler = (f.take().unwrap())();
 
     while !tl_display::with(|d| d.data.quit_ordered) {
@@ -497,8 +541,11 @@ where
             display.process_event(&mut xevent, &mut *event_handler);
         }
 
-        event_handler.update();
-        event_handler.draw();
+        {
+            let skia_ctx = display.skia_ctx.as_mut().unwrap();
+            event_handler.update(skia_ctx);
+            event_handler.draw(skia_ctx);
+        }
 
         glx.swap_buffers(display.display, glx_window);
         (display.libx11.XFlush)(display.display);
@@ -569,6 +616,46 @@ where
 
     (display.libx11.XFlush)(display.display);
 
+    #[cfg(not(feature = "skia"))]
+    {
+        display.skia_ctx = Some(());
+    }
+
+    #[cfg(feature = "skia")]
+    {
+        use std::convert::TryInto;
+
+        let interface = skia_safe::gpu::gl::Interface::new_load_with(|proc| {
+            if proc == "eglGetCurrentDisplay" {
+                return std::ptr::null();
+            }
+
+            let name = std::ffi::CString::new(proc).unwrap();
+            let get_procaddr = (egl_lib.eglGetProcAddress).expect("non-null function pointer");
+
+            match (get_procaddr)(name.as_ptr() as _) {
+                Some(procaddr) => procaddr as *const libc::c_void,
+                None => std::ptr::null(),
+            }
+        })
+        .expect("Failed to create Skia <-> OpenGL ES interface");
+
+        let dctx = DirectContext::new_gl(Some(interface), None)
+            .expect("Failed to create Skia's direct context");
+
+        let fb_info = {
+            let mut fboid: gl::GLint = 0;
+            unsafe { gl::glGetIntegerv(gl::GL_FRAMEBUFFER_BINDING, &mut fboid) };
+
+            FramebufferInfo {
+                fboid: fboid.try_into().unwrap(),
+                format: gl::GL_RGBA8,
+            }
+        };
+
+        display.skia_ctx = Some(SkiaContext::new(dctx, fb_info, w, h));
+    };
+
     let mut event_handler = (f.take().unwrap())();
 
     while !tl_display::with(|d| d.data.quit_ordered) {
@@ -580,8 +667,11 @@ where
             display.process_event(&mut xevent, &mut *event_handler);
         }
 
-        event_handler.update();
-        event_handler.draw();
+        {
+            let skia_ctx = display.skia_ctx.as_mut().unwrap();
+            event_handler.update(skia_ctx);
+            event_handler.draw(skia_ctx);
+        }
 
         (egl_lib.eglSwapBuffers.unwrap())(egl_display, egl_surface);
         (display.libx11.XFlush)(display.display);
@@ -634,6 +724,7 @@ where
             libx11,
             libxi,
             repeated_keycodes: [false; 256],
+            skia_ctx: None,
         };
 
         match conf.platform.linux_x11_gl {
