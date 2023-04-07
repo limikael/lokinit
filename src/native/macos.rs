@@ -2,6 +2,8 @@
 //! sokol_app's objective C code and Makepad's (https://github.com/makepad/makepad/blob/live/platform/src/platform/apple)
 //! platform implementation
 //!
+
+use crate::skia::SkiaContext;
 use {
     crate::{
         conf::AppleGfxApi,
@@ -193,12 +195,12 @@ impl MacosDisplay {
     }
 }
 struct WindowPayload {
-    event_handler: Option<Box<dyn EventHandler>>,
+    ctx: Option<(Box<dyn EventHandler>, SkiaContext)>,
     f: Option<Box<dyn 'static + FnOnce() -> Box<dyn EventHandler>>>,
 }
 impl WindowPayload {
     pub fn context(&mut self) -> Option<&mut dyn EventHandler> {
-        let event_handler = self.event_handler.as_deref_mut()?;
+        let event_handler = self.ctx.as_deref_mut()?;
 
         Some(event_handler)
     }
@@ -560,8 +562,43 @@ pub fn define_opengl_view_class() -> *const Class {
             unsafe { get_proc_address(name.as_ptr() as _) }
         });
 
+        let skia_ctx = {
+            // Skia initialization on OpenGL ES
+            use skia_safe::gpu::{gl::FramebufferInfo, DirectContext};
+            use std::convert::TryInto;
+
+            let interface = skia_safe::gpu::gl::Interface::new_load_with(|proc| {
+                if proc == "eglGetCurrentDisplay" {
+                    return std::ptr::null();
+                }
+                let name = std::ffi::CString::new(proc).unwrap();
+                unsafe {
+                    match get_proc_address(name.as_ptr() as _) {
+                        Some(procaddr) => procaddr as *const std::ffi::c_void,
+                        None => std::ptr::null(),
+                    }
+                }
+            })
+            .expect("Failed to create Skia <-> OpenGL interface");
+
+            let dctx = DirectContext::new_gl(Some(interface), None)
+                .expect("Failed to create Skia's direct context");
+
+            let fb_info = {
+                let mut fboid: gl::GLint = 0;
+                gl::glGetIntegerv(gl::GL_FRAMEBUFFER_BINDING, &mut fboid);
+
+                FramebufferInfo {
+                    fboid: fboid.try_into().unwrap(),
+                    format: gl::GL_RGBA8,
+                }
+            };
+
+            SkiaContext::new(dctx, fb_info, conf.window_width, conf.window_height)
+        };
+
         let f = payload.f.take().unwrap();
-        payload.event_handler = Some(f());
+        payload.ctx = Some((f(), skia_ctx));
     }
 
     extern "C" fn timer_fired(this: &Object, _sel: Sel, _: ObjcId) {
@@ -610,9 +647,47 @@ pub fn define_metal_view_class() -> *const Class {
     extern "C" fn draw_rect(this: &Object, _sel: Sel, _rect: NSRect) {
         let payload = get_window_payload(this);
 
-        if payload.event_handler.is_none() {
+        if payload.ctx.is_none() {
+            let skia_ctx = {
+                // Skia initialization on OpenGL ES
+                use skia_safe::gpu::{gl::FramebufferInfo, DirectContext};
+                use std::convert::TryInto;
+
+                // TODO: Skia <-> Metal interface
+                let interface = todo!();
+
+                // let interface = skia_safe::gpu::gl::Interface::new_load_with(|proc| {
+                //     if proc == "eglGetCurrentDisplay" {
+                //         return std::ptr::null();
+                //     }
+                //     let name = std::ffi::CString::new(proc).unwrap();
+                //     unsafe {
+                //         match get_proc_address(name.as_ptr() as _) {
+                //             Some(procaddr) => procaddr as *const std::ffi::c_void,
+                //             None => std::ptr::null(),
+                //         }
+                //     }
+                // })
+                // .expect("Failed to create Skia <-> Metal interface");
+
+                let dctx = DirectContext::new_gl(Some(interface), None)
+                    .expect("Failed to create Skia's direct context");
+
+                let fb_info = {
+                    let mut fboid: gl::GLint = 0;
+                    gl::glGetIntegerv(gl::GL_FRAMEBUFFER_BINDING, &mut fboid);
+
+                    FramebufferInfo {
+                        fboid: fboid.try_into().unwrap(),
+                        format: gl::GL_RGBA8,
+                    }
+                };
+
+                SkiaContext::new(dctx, fb_info, conf.window_width, conf.window_height)
+            };
+
             let f = payload.f.take().unwrap();
-            payload.event_handler = Some(f());
+            payload.ctx = Some(f());
         }
 
         if let Some(event_handler) = payload.context() {
@@ -726,7 +801,7 @@ where
 {
     let mut payload = WindowPayload {
         f: Some(Box::new(f)),
-        event_handler: None,
+        ctx: None,
     };
 
     let mut display = MacosDisplay {
