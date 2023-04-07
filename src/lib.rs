@@ -3,14 +3,7 @@ mod event;
 pub mod fs;
 pub mod graphics;
 
-#[cfg(feature = "skia")]
 pub mod skia;
-
-#[cfg(not(feature = "skia"))]
-pub mod skia {
-    // just to make things a bit less tedious
-    pub type SkiaContext = ();
-}
 
 pub mod native;
 

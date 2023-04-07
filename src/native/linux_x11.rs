@@ -19,10 +19,10 @@ use crate::{
 
 use libx11::*;
 
-#[cfg(feature = "skia")]
-use skia_safe::gpu::{gl::FramebufferInfo, DirectContext};
-
-use std::collections::HashMap;
+use std::{
+    collections::HashMap,
+    ops::{Deref, DerefMut},
+};
 
 pub struct Dummy;
 
@@ -37,15 +37,41 @@ pub struct X11Display {
     cursor_cache: HashMap<CursorIcon, libx11::Cursor>,
 }
 
-// part of X11 display that lives on a main loop
+/// part of X11 display that lives on a main loop
 pub struct X11MainLoopData {
     libx11: LibX11,
     libxi: xi_input::LibXi,
     display: *mut Display,
     root: Window,
     repeated_keycodes: [bool; 256],
+}
 
-    skia_ctx: Option<SkiaContext>,
+impl X11MainLoopData {
+    fn with_skia(self, skia_ctx: SkiaContext) -> ExtendedX11MainLoopData {
+        ExtendedX11MainLoopData {
+            data: self,
+            skia_ctx,
+        }
+    }
+}
+
+pub struct ExtendedX11MainLoopData {
+    data: X11MainLoopData,
+    skia_ctx: SkiaContext,
+}
+
+impl Deref for ExtendedX11MainLoopData {
+    type Target = X11MainLoopData;
+
+    fn deref(&self) -> &Self::Target {
+        &self.data
+    }
+}
+
+impl DerefMut for ExtendedX11MainLoopData {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.data
+    }
 }
 
 pub mod tl_display {
@@ -317,14 +343,14 @@ impl X11Display {
     }
 }
 
-impl X11MainLoopData {
+impl ExtendedX11MainLoopData {
     unsafe fn process_event(&mut self, event: &mut XEvent, event_handler: &mut dyn EventHandler) {
-        let skia_ctx = self.skia_ctx.as_mut().unwrap();
+        let inner = &mut self.data;
 
         match (*event).type_0 {
             2 => {
                 let keycode = (*event).xkey.keycode as libc::c_int;
-                let key = keycodes::translate_key(&mut self.libx11, self.display, keycode);
+                let key = keycodes::translate_key(&mut inner.libx11, inner.display, keycode);
                 let repeat = self.repeated_keycodes[(keycode & 0xff) as usize];
                 self.repeated_keycodes[(keycode & 0xff) as usize] = true;
                 let mods = keycodes::translate_mod((*event).xkey.state as libc::c_int);
@@ -339,17 +365,17 @@ impl X11MainLoopData {
                 let chr = keycodes::keysym_to_unicode(keysym);
                 if chr > 0 {
                     if let Some(chr) = std::char::from_u32(chr as u32) {
-                        event_handler.char_event(skia_ctx, chr, mods, repeat);
+                        event_handler.char_event(&mut self.skia_ctx, chr, mods, repeat);
                     }
                 }
-                event_handler.key_down_event(skia_ctx, key, mods, repeat);
+                event_handler.key_down_event(&mut self.skia_ctx, key, mods, repeat);
             }
             3 => {
                 let keycode = (*event).xkey.keycode;
-                let key = keycodes::translate_key(&mut self.libx11, self.display, keycode as _);
+                let key = keycodes::translate_key(&mut inner.libx11, inner.display, keycode as _);
                 self.repeated_keycodes[(keycode & 0xff) as usize] = false;
                 let mods = keycodes::translate_mod((*event).xkey.state as libc::c_int);
-                event_handler.key_up_event(skia_ctx, key, mods);
+                event_handler.key_up_event(&mut self.skia_ctx, key, mods);
             }
             4 => {
                 let btn = keycodes::translate_mouse_button((*event).xbutton.button as _);
@@ -357,20 +383,20 @@ impl X11MainLoopData {
                 let y = (*event).xmotion.y as libc::c_float;
 
                 if btn != crate::event::MouseButton::Unknown {
-                    event_handler.mouse_button_down_event(skia_ctx, btn, x, y);
+                    event_handler.mouse_button_down_event(&mut self.skia_ctx, btn, x, y);
                 } else {
                     match (*event).xbutton.button {
                         4 => {
-                            event_handler.mouse_wheel_event(skia_ctx, 0.0, 1.0);
+                            event_handler.mouse_wheel_event(&mut self.skia_ctx, 0.0, 1.0);
                         }
                         5 => {
-                            event_handler.mouse_wheel_event(skia_ctx, 0.0, -1.0);
+                            event_handler.mouse_wheel_event(&mut self.skia_ctx, 0.0, -1.0);
                         }
                         6 => {
-                            event_handler.mouse_wheel_event(skia_ctx, 1.0, 0.0);
+                            event_handler.mouse_wheel_event(&mut self.skia_ctx, 1.0, 0.0);
                         }
                         7 => {
-                            event_handler.mouse_wheel_event(skia_ctx, -1.0, 0.0);
+                            event_handler.mouse_wheel_event(&mut self.skia_ctx, -1.0, 0.0);
                         }
                         _ => {}
                     }
@@ -382,7 +408,7 @@ impl X11MainLoopData {
                 let y = (*event).xmotion.y as libc::c_float;
 
                 if btn != crate::event::MouseButton::Unknown {
-                    event_handler.mouse_button_up_event(skia_ctx, btn, x, y);
+                    event_handler.mouse_button_up_event(&mut self.skia_ctx, btn, x, y);
                 }
             }
             7 => {
@@ -394,7 +420,7 @@ impl X11MainLoopData {
             6 => {
                 let x = (*event).xmotion.x as libc::c_float;
                 let y = (*event).xmotion.y as libc::c_float;
-                event_handler.mouse_motion_event(skia_ctx, x, y);
+                event_handler.mouse_motion_event(&mut self.skia_ctx, x, y);
             }
             22 => {
                 if (*event).xconfigure.width != tl_display::with(|d| d.data.screen_width)
@@ -406,7 +432,7 @@ impl X11MainLoopData {
                         d.data.screen_width = width;
                         d.data.screen_height = height;
                     });
-                    event_handler.resize_event(skia_ctx, width as _, height as _);
+                    event_handler.resize_event(&mut self.skia_ctx, width as _, height as _);
                 }
             }
             33 => {
@@ -422,7 +448,7 @@ impl X11MainLoopData {
                 // // some other app is waiting for clibpoard content
                 // // need to make appropriate XSelectionEvent - response for this request
                 // // only UTF8_STRING request is actually supported
-                clipboard::respond_to_clipboard_request(&mut self.libx11, self.display, event);
+                clipboard::respond_to_clipboard_request(&mut inner.libx11, inner.display, event);
             }
             // SelectionClear
             29 => {}
@@ -430,20 +456,18 @@ impl X11MainLoopData {
 
             // GenericEvent
             35 if Some((*event).xcookie.extension)
-                == self
-                    .libxi
-                    .xi_extension_opcode(&mut self.libx11, self.display) =>
+                == (inner.libxi).xi_extension_opcode(&mut inner.libx11, inner.display) =>
             {
                 if (*event).xcookie.evtype == xi_input::XI_RawMotion {
-                    let (dx, dy) = self.libxi.read_cookie(&mut (*event).xcookie, self.display);
-                    event_handler.raw_mouse_motion(skia_ctx, dx as f32, dy as f32);
+                    let (dx, dy) = inner.libxi.read_cookie(&mut (*event).xcookie, inner.display);
+                    event_handler.raw_mouse_motion(&mut self.skia_ctx, dx as f32, dy as f32);
                 }
             }
             _ => {}
         };
 
         if tl_display::with(|d| d.data.quit_requested && !d.data.quit_ordered) {
-            event_handler.quit_requested_event(skia_ctx);
+            event_handler.quit_requested_event(&mut self.skia_ctx);
             tl_display::with(|d| {
                 if d.data.quit_requested {
                     d.data.quit_ordered = true
@@ -493,13 +517,9 @@ where
         tl_display::with(|d| d.set_fullscreen(window, true));
     }
 
-    #[cfg(not(feature = "skia"))]
-    {
-        display.skia_ctx = Some(());
-    }
-
-    #[cfg(feature = "skia")]
-    {
+    let skia_ctx = {
+        // Skia initialization on OpenGL
+        use skia_safe::gpu::{gl::FramebufferInfo, DirectContext};
         use std::convert::TryInto;
 
         let interface = skia_safe::gpu::gl::Interface::new_load_with(|proc| {
@@ -526,9 +546,10 @@ where
             }
         };
 
-        display.skia_ctx = Some(SkiaContext::new(dctx, fb_info, w, h));
+        SkiaContext::new(dctx, fb_info, w, h)
     };
 
+    let mut display = display.with_skia(skia_ctx);
     let mut event_handler = (f.take().unwrap())();
 
     while !tl_display::with(|d| d.data.quit_ordered) {
@@ -542,7 +563,7 @@ where
         }
 
         {
-            let skia_ctx = display.skia_ctx.as_mut().unwrap();
+            let skia_ctx = &mut display.skia_ctx;
             event_handler.update(skia_ctx);
             event_handler.draw(skia_ctx);
         }
@@ -616,13 +637,9 @@ where
 
     (display.libx11.XFlush)(display.display);
 
-    #[cfg(not(feature = "skia"))]
-    {
-        display.skia_ctx = Some(());
-    }
-
-    #[cfg(feature = "skia")]
-    {
+    let skia_ctx = {
+        // Skia initialization on OpenGL ES
+        use skia_safe::gpu::{gl::FramebufferInfo, DirectContext};
         use std::convert::TryInto;
 
         let interface = skia_safe::gpu::gl::Interface::new_load_with(|proc| {
@@ -653,9 +670,10 @@ where
             }
         };
 
-        display.skia_ctx = Some(SkiaContext::new(dctx, fb_info, w, h));
+        SkiaContext::new(dctx, fb_info, w, h)
     };
 
+    let mut display = display.with_skia(skia_ctx);
     let mut event_handler = (f.take().unwrap())();
 
     while !tl_display::with(|d| d.data.quit_ordered) {
@@ -668,7 +686,7 @@ where
         }
 
         {
-            let skia_ctx = display.skia_ctx.as_mut().unwrap();
+            let skia_ctx = &mut display.skia_ctx;
             event_handler.update(skia_ctx);
             event_handler.draw(skia_ctx);
         }
@@ -724,7 +742,6 @@ where
             libx11,
             libxi,
             repeated_keycodes: [false; 256],
-            skia_ctx: None,
         };
 
         match conf.platform.linux_x11_gl {

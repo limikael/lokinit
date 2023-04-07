@@ -14,11 +14,9 @@ keywords = ["graphics", "3D", "opengl", "gamedev", "windowing"]
 categories = ["rendering::graphics-api"]
 
 [dependencies]
-skia-safe = { version = "0.60.0", optional = true }
+skia-safe = { version = "0.60.0", features = ["gl"] }
 
 [features]
-skia = ["skia-safe/gl"]
-
 # Optional log-rs like macros implementation
 # disabled by default
 log-impl = []
@@ -42,7 +40,6 @@ quad-rand = "0.1"
 
 [[example]]
 name = "skia"
-required-features = ["skia"]
 
 [package.metadata.android.activity_attributes]
 "android:exported" = "true"
