@@ -13,9 +13,6 @@ readme="README.md"
 keywords = ["graphics", "3D", "opengl", "gamedev", "windowing"]
 categories = ["rendering::graphics-api"]
 
-[dependencies]
-skia-safe = { version = "0.60.0", features = ["gl"] }
-
 [features]
 # Optional log-rs like macros implementation
 # disabled by default
@@ -35,7 +32,9 @@ libc = "0.2"
 ndk-sys = "0.2"
 
 [target.'cfg(any(target_os = "macos", target_os = "ios"))'.dependencies]
-skia-safe = { version = "0.60.0", features = ["gl", "metal"] }
+# TODO: maybe replace "gl" with "metal" once we support it.
+# Having both "gl" and "metal" features prevents us from fetching prebuilt binaries, even when not compiling on MacOS.
+skia-safe = { version = "0.60.0", features = ["gl"] }
 objc = "0.2"
 
 [dev-dependencies]
