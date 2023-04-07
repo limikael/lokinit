@@ -199,10 +199,10 @@ struct WindowPayload {
     f: Option<Box<dyn 'static + FnOnce() -> Box<dyn EventHandler>>>,
 }
 impl WindowPayload {
-    pub fn context(&mut self) -> Option<&mut dyn EventHandler> {
-        let event_handler = self.ctx.as_deref_mut()?;
+    pub fn context(&mut self) -> Option<&mut (Box<dyn EventHandler>, SkiaContext)> {
+        let ctx = self.ctx.as_mut()?;
 
-        Some(event_handler)
+        Some(ctx)
     }
 }
 pub fn define_app_delegate() -> *const Class {
@@ -232,8 +232,8 @@ pub fn define_cocoa_window_delegate() -> *const Class {
             // if window should be closed and event handling is enabled, give user code
             // a chance to intervene via sapp_cancel_quit()
             tl_display::with(|d| d.data.quit_requested = true);
-            if let Some(event_handler) = payload.context() {
-                event_handler.quit_requested_event();
+            if let Some((event_handler, skia_ctx)) = payload.context() {
+                event_handler.quit_requested_event(skia_ctx);
             }
 
             // user code hasn't intervened, quit the app
@@ -251,8 +251,8 @@ pub fn define_cocoa_window_delegate() -> *const Class {
     extern "C" fn window_did_resize(this: &Object, _: Sel, _: ObjcId) {
         let payload = get_window_payload(this);
         if let Some((w, h)) = unsafe { tl_display::with(|d| d.update_dimensions()) } {
-            if let Some(event_handler) = payload.context() {
-                event_handler.resize_event(w as _, h as _);
+            if let Some((event_handler, skia_ctx)) = payload.context() {
+                event_handler.resize_event(skia_ctx, w as _, h as _);
             }
         }
     }
@@ -260,8 +260,8 @@ pub fn define_cocoa_window_delegate() -> *const Class {
     extern "C" fn window_did_change_screen(this: &Object, _: Sel, _: ObjcId) {
         let payload = get_window_payload(this);
         if let Some((w, h)) = unsafe { tl_display::with(|d| d.update_dimensions()) } {
-            if let Some(event_handler) = payload.context() {
-                event_handler.resize_event(w as _, h as _);
+            if let Some((event_handler, skia_ctx)) = payload.context() {
+                event_handler.resize_event(skia_ctx, w as _, h as _);
             }
         }
     }
@@ -340,8 +340,8 @@ unsafe fn view_base_decl(decl: &mut ClassDecl) {
         unsafe {
             let point: NSPoint = msg_send!(event, locationInWindow);
             let point = tl_display::with(|d| d.transform_mouse_point(&point));
-            if let Some(event_handler) = payload.context() {
-                event_handler.mouse_motion_event(point.0, point.1);
+            if let Some((event_handler, skia_ctx)) = payload.context() {
+                event_handler.mouse_motion_event(skia_ctx, point.0, point.1);
             }
         }
     }
@@ -352,11 +352,11 @@ unsafe fn view_base_decl(decl: &mut ClassDecl) {
         unsafe {
             let point: NSPoint = msg_send!(event, locationInWindow);
             let point = tl_display::with(|d| d.transform_mouse_point(&point));
-            if let Some(event_handler) = payload.context() {
+            if let Some((event_handler, skia_ctx)) = payload.context() {
                 if down {
-                    event_handler.mouse_button_down_event(btn, point.0, point.1);
+                    event_handler.mouse_button_down_event(skia_ctx, btn, point.0, point.1);
                 } else {
-                    event_handler.mouse_button_up_event(btn, point.0, point.1);
+                    event_handler.mouse_button_up_event(skia_ctx, btn, point.0, point.1);
                 }
             }
         }
@@ -389,8 +389,8 @@ unsafe fn view_base_decl(decl: &mut ClassDecl) {
                 dx *= 10.0;
                 dy *= 10.0;
             }
-            if let Some(event_handler) = payload.context() {
-                event_handler.mouse_wheel_event(dx as f32, dy as f32);
+            if let Some((event_handler, skia_ctx)) = payload.context() {
+                event_handler.mouse_wheel_event(skia_ctx, dx as f32, dy as f32);
             }
         }
     }
@@ -421,14 +421,14 @@ unsafe fn view_base_decl(decl: &mut ClassDecl) {
         let mods = get_event_key_modifier(event);
         let repeat: bool = unsafe { msg_send!(event, isARepeat) };
         if let Some(key) = get_event_keycode(event) {
-            if let Some(event_handler) = payload.context() {
-                event_handler.key_down_event(key, mods, repeat);
+            if let Some((event_handler, skia_ctx)) = payload.context() {
+                event_handler.key_down_event(skia_ctx, key, mods, repeat);
             }
         }
 
         if let Some(character) = get_event_char(event) {
-            if let Some(event_handler) = payload.context() {
-                event_handler.char_event(character, mods, repeat);
+            if let Some((event_handler, skia_ctx)) = payload.context() {
+                event_handler.char_event(skia_ctx, character, mods, repeat);
             }
         }
     }
@@ -436,8 +436,8 @@ unsafe fn view_base_decl(decl: &mut ClassDecl) {
         let payload = get_window_payload(this);
         let mods = get_event_key_modifier(event);
         if let Some(key) = get_event_keycode(event) {
-            if let Some(event_handler) = payload.context() {
-                event_handler.key_up_event(key, mods);
+            if let Some((event_handler, skia_ctx)) = payload.context() {
+                event_handler.key_up_event(skia_ctx, key, mods);
             }
         }
     }
@@ -517,8 +517,8 @@ pub fn define_opengl_view_class() -> *const Class {
             let () = msg_send![super(this, superclass), reshape];
 
             if let Some((w, h)) = tl_display::with(|d| d.update_dimensions()) {
-                if let Some(event_handler) = payload.context() {
-                    event_handler.resize_event(w as _, h as _);
+                if let Some((event_handler, skia_ctx)) = payload.context() {
+                    event_handler.resize_event(skia_ctx, w as _, h as _);
                 }
             }
         }
@@ -526,9 +526,9 @@ pub fn define_opengl_view_class() -> *const Class {
 
     extern "C" fn draw_rect(this: &Object, _sel: Sel, _rect: NSRect) {
         let payload = get_window_payload(this);
-        if let Some(event_handler) = payload.context() {
-            event_handler.update();
-            event_handler.draw();
+        if let Some((event_handler, skia_ctx)) = payload.context() {
+            event_handler.update(skia_ctx);
+            event_handler.draw(skia_ctx);
         }
 
         unsafe {
@@ -586,7 +586,9 @@ pub fn define_opengl_view_class() -> *const Class {
 
             let fb_info = {
                 let mut fboid: gl::GLint = 0;
-                gl::glGetIntegerv(gl::GL_FRAMEBUFFER_BINDING, &mut fboid);
+                unsafe {
+                    gl::glGetIntegerv(gl::GL_FRAMEBUFFER_BINDING, &mut fboid);
+                }
 
                 FramebufferInfo {
                     fboid: fboid.try_into().unwrap(),
@@ -594,7 +596,14 @@ pub fn define_opengl_view_class() -> *const Class {
                 }
             };
 
-            SkiaContext::new(dctx, fb_info, conf.window_width, conf.window_height)
+            let bounds: NSRect = unsafe { msg_send![this, bounds] };
+
+            SkiaContext::new(
+                dctx,
+                fb_info,
+                bounds.size.width as i32,
+                bounds.size.height as i32,
+            )
         };
 
         let f = payload.f.take().unwrap();
@@ -644,6 +653,8 @@ pub fn define_metal_view_class() -> *const Class {
         }
     }
 
+    // TODO: REMOVE THIS LATER
+    #[allow(unreachable_code)]
     extern "C" fn draw_rect(this: &Object, _sel: Sel, _rect: NSRect) {
         let payload = get_window_payload(this);
 
@@ -675,7 +686,9 @@ pub fn define_metal_view_class() -> *const Class {
 
                 let fb_info = {
                     let mut fboid: gl::GLint = 0;
-                    gl::glGetIntegerv(gl::GL_FRAMEBUFFER_BINDING, &mut fboid);
+                    unsafe {
+                        gl::glGetIntegerv(gl::GL_FRAMEBUFFER_BINDING, &mut fboid);
+                    };
 
                     FramebufferInfo {
                         fboid: fboid.try_into().unwrap(),
@@ -683,16 +696,17 @@ pub fn define_metal_view_class() -> *const Class {
                     }
                 };
 
-                SkiaContext::new(dctx, fb_info, conf.window_width, conf.window_height)
+                todo!()
+                //SkiaContext::new(dctx, fb_info, conf.window_width, conf.window_height)
             };
 
             let f = payload.f.take().unwrap();
-            payload.ctx = Some(f());
+            payload.ctx = Some((f(), skia_ctx));
         }
 
-        if let Some(event_handler) = payload.context() {
-            event_handler.update();
-            event_handler.draw();
+        if let Some((event_handler, skia_ctx)) = payload.context() {
+            event_handler.update(skia_ctx);
+            event_handler.draw(skia_ctx);
         }
 
         unsafe {
