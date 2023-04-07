@@ -496,7 +496,7 @@ where
                     None => std::ptr::null(),
                 }
             })
-            .expect("Failed to create Skia <-> OpenGL interface");
+            .expect("Failed to create Skia <-> OpenGL ES interface");
 
             let dctx = DirectContext::new_gl(Some(interface), None)
                 .expect("Failed to create Skia's direct context");
