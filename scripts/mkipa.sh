@@ -31,7 +31,7 @@ AppNameLower=$(echo "$AppName" | tr '[:upper:]' '[:lower:]')
 
 # Compile the binary
 echo "Compiling the app..."
-cargo build --target aarch64-apple-ios --example $BinaryName
+cargo build --target aarch64-apple-ios --example $BinaryName --release
 
 # Convert the .app into a .ipa
 echo "Converting the app to an ipa..."
