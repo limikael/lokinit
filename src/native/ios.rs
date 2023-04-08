@@ -12,8 +12,9 @@ use {
                 apple_util::{self, *},
                 frameworks::{self, *},
             },
-            NativeDisplayData,
+            gl, NativeDisplayData,
         },
+        skia::SkiaContext,
     },
     std::os::raw::c_void,
 };
@@ -99,7 +100,7 @@ mod tl_display {
 }
 
 struct WindowPayload {
-    event_handler: Option<Box<dyn EventHandler>>,
+    event_handler: Option<(Box<dyn EventHandler>, SkiaContext)>,
     gles2: bool,
     f: Option<Box<dyn 'static + FnOnce() -> Box<dyn EventHandler>>>,
 }
@@ -142,9 +143,14 @@ pub fn define_glk_or_mtk_view(superclass: &Class) -> *const Class {
         unsafe {
             let payload = get_window_payload(this);
 
-            if let Some(ref mut event_handler) = payload.event_handler {
+            if let Some((ref mut event_handler, ref mut skia_ctx)) = &mut payload.event_handler {
                 on_touch(this, event, |x, y| {
-                    event_handler.mouse_button_down_event(MouseButton::Left, x as _, y as _)
+                    event_handler.mouse_button_down_event(
+                        skia_ctx,
+                        MouseButton::Left,
+                        x as _,
+                        y as _,
+                    )
                 });
             }
         }
@@ -154,9 +160,9 @@ pub fn define_glk_or_mtk_view(superclass: &Class) -> *const Class {
         unsafe {
             let payload = get_window_payload(this);
 
-            if let Some(ref mut event_handler) = payload.event_handler {
+            if let Some((ref mut event_handler, ref mut skia_ctx)) = &mut payload.event_handler {
                 on_touch(this, event, |x, y| {
-                    event_handler.mouse_motion_event(x as _, y as _)
+                    event_handler.mouse_motion_event(skia_ctx, x as _, y as _)
                 });
             }
         }
@@ -166,9 +172,9 @@ pub fn define_glk_or_mtk_view(superclass: &Class) -> *const Class {
         unsafe {
             let payload = get_window_payload(this);
 
-            if let Some(ref mut event_handler) = payload.event_handler {
+            if let Some((ref mut event_handler, ref mut skia_ctx)) = &mut payload.event_handler {
                 on_touch(this, event, |x, y| {
-                    event_handler.mouse_button_up_event(MouseButton::Left, x as _, y as _)
+                    event_handler.mouse_button_up_event(skia_ctx, MouseButton::Left, x as _, y as _)
                 });
             }
         }
@@ -229,23 +235,11 @@ unsafe fn get_proc_address(name: *const u8) -> Option<unsafe extern "C" fn()> {
 }
 
 pub fn define_glk_or_mtk_view_dlg(superclass: &Class) -> *const Class {
+    log("YOOO LOOK RIGHT HERE <<<<=========");
     let mut decl = ClassDecl::new("QuadViewDlg", superclass).unwrap();
 
     extern "C" fn draw_in_rect(this: &Object, _: Sel, _: ObjcId, _: ObjcId) {
         let payload = get_window_payload(this);
-        if payload.event_handler.is_none() {
-            let f = payload.f.take().unwrap();
-
-            if tl_display::with(|d| d.gfx_api == AppleGfxApi::OpenGl) {
-                crate::native::gl::load_gl_funcs(|proc| {
-                    let name = std::ffi::CString::new(proc).unwrap();
-
-                    unsafe { get_proc_address(name.as_ptr() as _) }
-                });
-            }
-
-            payload.event_handler = Some(f());
-        }
 
         let main_screen: ObjcId = unsafe { msg_send![class!(UIScreen), mainScreen] };
         let screen_rect: NSRect = unsafe { msg_send![main_screen, bounds] };
@@ -263,6 +257,59 @@ pub fn define_glk_or_mtk_view_dlg(superclass: &Class) -> *const Class {
             )
         };
 
+        if payload.event_handler.is_none() {
+            let f = payload.f.take().unwrap();
+
+            if tl_display::with(|d| d.gfx_api == AppleGfxApi::OpenGl) {
+                gl::load_gl_funcs(|proc| {
+                    let name = std::ffi::CString::new(proc).unwrap();
+
+                    unsafe { get_proc_address(name.as_ptr() as _) }
+                });
+            } else {
+                panic!("Non-GL backend unsupported with Skia");
+            }
+
+            let skia_ctx = {
+                // Skia initialization on OpenGL ES
+                use skia_safe::gpu::{gl::FramebufferInfo, DirectContext};
+                use std::convert::TryInto;
+
+                let interface = skia_safe::gpu::gl::Interface::new_load_with(|proc| {
+                    if proc == "eglGetCurrentDisplay" {
+                        return std::ptr::null();
+                    }
+                    let name = std::ffi::CString::new(proc).unwrap();
+                    unsafe {
+                        match get_proc_address(name.as_ptr() as _) {
+                            Some(procaddr) => procaddr as *const std::ffi::c_void,
+                            None => std::ptr::null(),
+                        }
+                    }
+                })
+                .expect("Failed to create Skia <-> OpenGL interface");
+
+                let dctx = DirectContext::new_gl(Some(interface), None)
+                    .expect("Failed to create Skia's direct context");
+
+                let fb_info = {
+                    let mut fboid: gl::GLint = 0;
+                    unsafe {
+                        gl::glGetIntegerv(gl::GL_FRAMEBUFFER_BINDING, &mut fboid);
+                    }
+
+                    FramebufferInfo {
+                        fboid: fboid.try_into().unwrap(),
+                        format: gl::GL_RGBA8,
+                    }
+                };
+
+                SkiaContext::new(dctx, fb_info, screen_width, screen_height)
+            };
+
+            payload.event_handler = Some((f(), skia_ctx));
+        }
+
         if tl_display::with(|d| d.data.screen_width != screen_width)
             || tl_display::with(|d| d.data.screen_height != screen_height)
         {
@@ -270,14 +317,14 @@ pub fn define_glk_or_mtk_view_dlg(superclass: &Class) -> *const Class {
                 d.data.screen_width = screen_width;
                 d.data.screen_height = screen_height;
             });
-            if let Some(ref mut event_handler) = payload.event_handler {
-                event_handler.resize_event(screen_width as _, screen_height as _);
+            if let Some((ref mut event_handler, ref mut skia_ctx)) = &mut payload.event_handler {
+                event_handler.resize_event(skia_ctx, screen_width as _, screen_height as _);
             }
         }
 
-        if let Some(ref mut event_handler) = payload.event_handler {
-            event_handler.update();
-            event_handler.draw();
+        if let Some((ref mut event_handler, ref mut skia_ctx)) = &mut payload.event_handler {
+            event_handler.update(skia_ctx);
+            event_handler.draw(skia_ctx);
         }
     }
     // wrapper to make sel! macros happy
