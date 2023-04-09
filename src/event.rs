@@ -172,27 +172,57 @@ pub trait EventHandler {
     fn resize_event(&mut self, _skia_ctx: &mut SkiaContext, _width: f32, _height: f32) {}
     fn mouse_motion_event(&mut self, _skia_ctx: &mut SkiaContext, _x: f32, _y: f32) {}
     fn mouse_wheel_event(&mut self, _skia_ctx: &mut SkiaContext, _x: f32, _y: f32) {}
-    fn mouse_button_down_event(&mut self, _skia_ctx: &mut SkiaContext, _button: MouseButton, _x: f32, _y: f32) {}
-    fn mouse_button_up_event(&mut self, _skia_ctx: &mut SkiaContext, _button: MouseButton, _x: f32, _y: f32) {}
+    fn mouse_button_down_event(
+        &mut self,
+        _skia_ctx: &mut SkiaContext,
+        _button: MouseButton,
+        _x: f32,
+        _y: f32,
+    ) {
+    }
+    fn mouse_button_up_event(
+        &mut self,
+        _skia_ctx: &mut SkiaContext,
+        _button: MouseButton,
+        _x: f32,
+        _y: f32,
+    ) {
+    }
 
-    fn char_event(&mut self, _skia_ctx: &mut SkiaContext, _character: char, _keymods: KeyMods, _repeat: bool) {}
+    fn char_event(
+        &mut self,
+        _skia_ctx: &mut SkiaContext,
+        _character: char,
+        _keymods: KeyMods,
+        _repeat: bool,
+    ) {
+    }
 
-    fn key_down_event(&mut self, _skia_ctx: &mut SkiaContext, _keycode: KeyCode, _keymods: KeyMods, _repeat: bool) {}
+    fn key_down_event(
+        &mut self,
+        _skia_ctx: &mut SkiaContext,
+        _keycode: KeyCode,
+        _keymods: KeyMods,
+        _repeat: bool,
+    ) {
+    }
 
     fn key_up_event(&mut self, _skia_ctx: &mut SkiaContext, _keycode: KeyCode, _keymods: KeyMods) {}
 
     ///  &mutDefault implementation emulates mouse clicks
-    fn touch_event(&mut self, skia_ctx: &mut SkiaContext, phase: TouchPhase, _id: u64, x: f32, y: f32) {
-        if phase == TouchPhase::Started {
-            self.mouse_button_down_event(skia_ctx, MouseButton::Left, x, y);
-        }
-
-        if phase == TouchPhase::Ended {
-            self.mouse_button_up_event(skia_ctx, MouseButton::Left, x, y);
-        }
-
-        if phase == TouchPhase::Moved {
-            self.mouse_motion_event(skia_ctx, x, y);
+    fn touch_event(
+        &mut self,
+        skia_ctx: &mut SkiaContext,
+        phase: TouchPhase,
+        _id: u64,
+        x: f32,
+        y: f32,
+    ) {
+        match phase {
+            TouchPhase::Started => self.mouse_button_down_event(skia_ctx, MouseButton::Left, x, y),
+            TouchPhase::Moved => self.mouse_motion_event(skia_ctx, x, y),
+            TouchPhase::Ended => self.mouse_button_up_event(skia_ctx, MouseButton::Left, x, y),
+            TouchPhase::Cancelled => self.mouse_button_up_event(skia_ctx, MouseButton::Left, x, y),
         }
     }
 

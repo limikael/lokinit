@@ -174,7 +174,17 @@ pub fn define_glk_or_mtk_view(superclass: &Class) -> *const Class {
         }
     }
 
-    extern "C" fn touches_canceled(_: &Object, _: Sel, _: ObjcId, _: ObjcId) {}
+    extern "C" fn touches_cancelled(this: &Object, _: Sel, _: ObjcId, event: ObjcId) {
+        unsafe {
+            let payload = get_window_payload(this);
+
+            if let Some((ref mut event_handler, ref mut skia_ctx)) = &mut payload.event_handler {
+                on_touch(this, event, |id, x, y| {
+                    event_handler.touch_event(skia_ctx, TouchPhase::Cancelled, id, x as _, y as _);
+                });
+            }
+        }
+    }
 
     unsafe {
         decl.add_method(sel!(isOpaque), yes as extern "C" fn(&Object, Sel) -> BOOL);
@@ -192,7 +202,7 @@ pub fn define_glk_or_mtk_view(superclass: &Class) -> *const Class {
         );
         decl.add_method(
             sel!(touchesCanceled: withEvent:),
-            touches_canceled as extern "C" fn(&Object, Sel, ObjcId, ObjcId),
+            touches_cancelled as extern "C" fn(&Object, Sel, ObjcId, ObjcId),
         );
     }
 
