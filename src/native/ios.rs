@@ -5,7 +5,7 @@
 use {
     crate::{
         conf::{self, AppleGfxApi, Conf},
-        event::{EventHandler, MouseButton},
+        event::{EventHandler, TouchPhase},
         fs,
         native::{
             apple::{
@@ -113,29 +113,20 @@ fn get_window_payload(this: &Object) -> &mut WindowPayload {
 }
 
 pub fn define_glk_or_mtk_view(superclass: &Class) -> *const Class {
+    // Superclass: GLKView (Subclass of UIView)
     let mut decl = ClassDecl::new("QuadView", superclass).unwrap();
 
-    fn on_touch(this: &Object, event: ObjcId, mut callback: impl FnMut(f32, f32)) {
+    fn on_touch(this: &Object, event: ObjcId, mut callback: impl FnMut(u64, f32, f32)) {
         unsafe {
             let enumerator: ObjcId = msg_send![event, allTouches];
+            let size: u64 = msg_send![enumerator, count];
             let enumerator: ObjcId = msg_send![enumerator, objectEnumerator];
 
-            let mut ios_touch: ObjcId;
-
-            while {
-                ios_touch = msg_send![enumerator, nextObject];
-                ios_touch != nil
-            } {
+            // Run the callback for each touch
+            for touch_id in 0..size {
+                let ios_touch: ObjcId = msg_send![enumerator, nextObject];
                 let mut ios_pos: NSPoint = msg_send![ios_touch, locationInView: this];
-
-                tl_display::with(|d| {
-                    if d.data.high_dpi {
-                        ios_pos.x *= 2.;
-                        ios_pos.y *= 2.;
-                    }
-                });
-
-                callback(ios_pos.x as _, ios_pos.y as _);
+                callback(touch_id, ios_pos.x as _, ios_pos.y as _);
             }
         }
     }
@@ -144,13 +135,8 @@ pub fn define_glk_or_mtk_view(superclass: &Class) -> *const Class {
             let payload = get_window_payload(this);
 
             if let Some((ref mut event_handler, ref mut skia_ctx)) = &mut payload.event_handler {
-                on_touch(this, event, |x, y| {
-                    event_handler.mouse_button_down_event(
-                        skia_ctx,
-                        MouseButton::Left,
-                        x as _,
-                        y as _,
-                    )
+                on_touch(this, event, |id, x, y| {
+                    event_handler.touch_event(skia_ctx, TouchPhase::Started, id, x as _, y as _);
                 });
             }
         }
@@ -161,8 +147,8 @@ pub fn define_glk_or_mtk_view(superclass: &Class) -> *const Class {
             let payload = get_window_payload(this);
 
             if let Some((ref mut event_handler, ref mut skia_ctx)) = &mut payload.event_handler {
-                on_touch(this, event, |x, y| {
-                    event_handler.mouse_motion_event(skia_ctx, x as _, y as _)
+                on_touch(this, event, |id, x, y| {
+                    event_handler.touch_event(skia_ctx, TouchPhase::Moved, id, x as _, y as _);
                 });
             }
         }
@@ -173,8 +159,8 @@ pub fn define_glk_or_mtk_view(superclass: &Class) -> *const Class {
             let payload = get_window_payload(this);
 
             if let Some((ref mut event_handler, ref mut skia_ctx)) = &mut payload.event_handler {
-                on_touch(this, event, |x, y| {
-                    event_handler.mouse_button_up_event(skia_ctx, MouseButton::Left, x as _, y as _)
+                on_touch(this, event, |id, x, y| {
+                    event_handler.touch_event(skia_ctx, TouchPhase::Ended, id, x as _, y as _);
                 });
             }
         }
@@ -235,7 +221,6 @@ unsafe fn get_proc_address(name: *const u8) -> Option<unsafe extern "C" fn()> {
 }
 
 pub fn define_glk_or_mtk_view_dlg(superclass: &Class) -> *const Class {
-    log("YOOO LOOK RIGHT HERE <<<<=========");
     let mut decl = ClassDecl::new("QuadViewDlg", superclass).unwrap();
 
     extern "C" fn draw_in_rect(this: &Object, _: Sel, _: ObjcId, _: ObjcId) {
