@@ -5,15 +5,16 @@
 use {
     crate::{
         conf::{self, AppleGfxApi, Conf},
-        event::{EventHandler, MouseButton},
+        event::{EventHandler, TouchPhase},
         fs,
         native::{
             apple::{
                 apple_util::{self, *},
                 frameworks::{self, *},
             },
-            NativeDisplayData,
+            gl, NativeDisplayData,
         },
+        skia::SkiaContext,
     },
     std::os::raw::c_void,
 };
@@ -99,7 +100,7 @@ mod tl_display {
 }
 
 struct WindowPayload {
-    event_handler: Option<Box<dyn EventHandler>>,
+    event_handler: Option<(Box<dyn EventHandler>, SkiaContext)>,
     gles2: bool,
     f: Option<Box<dyn 'static + FnOnce() -> Box<dyn EventHandler>>>,
 }
@@ -112,19 +113,18 @@ fn get_window_payload(this: &Object) -> &mut WindowPayload {
 }
 
 pub fn define_glk_or_mtk_view(superclass: &Class) -> *const Class {
+    // Superclass: GLKView (Subclass of UIView)
     let mut decl = ClassDecl::new("QuadView", superclass).unwrap();
 
-    fn on_touch(this: &Object, event: ObjcId, mut callback: impl FnMut(f32, f32)) {
+    fn on_touch(this: &Object, event: ObjcId, mut callback: impl FnMut(u64, f32, f32)) {
         unsafe {
             let enumerator: ObjcId = msg_send![event, allTouches];
+            let size: u64 = msg_send![enumerator, count];
             let enumerator: ObjcId = msg_send![enumerator, objectEnumerator];
 
-            let mut ios_touch: ObjcId;
-
-            while {
-                ios_touch = msg_send![enumerator, nextObject];
-                ios_touch != nil
-            } {
+            // Run the callback for each touch
+            for touch_id in 0..size {
+                let ios_touch: ObjcId = msg_send![enumerator, nextObject];
                 let mut ios_pos: NSPoint = msg_send![ios_touch, locationInView: this];
 
                 tl_display::with(|d| {
@@ -134,7 +134,7 @@ pub fn define_glk_or_mtk_view(superclass: &Class) -> *const Class {
                     }
                 });
 
-                callback(ios_pos.x as _, ios_pos.y as _);
+                callback(touch_id, ios_pos.x as _, ios_pos.y as _);
             }
         }
     }
@@ -142,9 +142,9 @@ pub fn define_glk_or_mtk_view(superclass: &Class) -> *const Class {
         unsafe {
             let payload = get_window_payload(this);
 
-            if let Some(ref mut event_handler) = payload.event_handler {
-                on_touch(this, event, |x, y| {
-                    event_handler.mouse_button_down_event(MouseButton::Left, x as _, y as _)
+            if let Some((ref mut event_handler, ref mut skia_ctx)) = &mut payload.event_handler {
+                on_touch(this, event, |id, x, y| {
+                    event_handler.touch_event(skia_ctx, TouchPhase::Started, id, x as _, y as _);
                 });
             }
         }
@@ -154,9 +154,9 @@ pub fn define_glk_or_mtk_view(superclass: &Class) -> *const Class {
         unsafe {
             let payload = get_window_payload(this);
 
-            if let Some(ref mut event_handler) = payload.event_handler {
-                on_touch(this, event, |x, y| {
-                    event_handler.mouse_motion_event(x as _, y as _)
+            if let Some((ref mut event_handler, ref mut skia_ctx)) = &mut payload.event_handler {
+                on_touch(this, event, |id, x, y| {
+                    event_handler.touch_event(skia_ctx, TouchPhase::Moved, id, x as _, y as _);
                 });
             }
         }
@@ -166,15 +166,25 @@ pub fn define_glk_or_mtk_view(superclass: &Class) -> *const Class {
         unsafe {
             let payload = get_window_payload(this);
 
-            if let Some(ref mut event_handler) = payload.event_handler {
-                on_touch(this, event, |x, y| {
-                    event_handler.mouse_button_up_event(MouseButton::Left, x as _, y as _)
+            if let Some((ref mut event_handler, ref mut skia_ctx)) = &mut payload.event_handler {
+                on_touch(this, event, |id, x, y| {
+                    event_handler.touch_event(skia_ctx, TouchPhase::Ended, id, x as _, y as _);
                 });
             }
         }
     }
 
-    extern "C" fn touches_canceled(_: &Object, _: Sel, _: ObjcId, _: ObjcId) {}
+    extern "C" fn touches_cancelled(this: &Object, _: Sel, _: ObjcId, event: ObjcId) {
+        unsafe {
+            let payload = get_window_payload(this);
+
+            if let Some((ref mut event_handler, ref mut skia_ctx)) = &mut payload.event_handler {
+                on_touch(this, event, |id, x, y| {
+                    event_handler.touch_event(skia_ctx, TouchPhase::Cancelled, id, x as _, y as _);
+                });
+            }
+        }
+    }
 
     unsafe {
         decl.add_method(sel!(isOpaque), yes as extern "C" fn(&Object, Sel) -> BOOL);
@@ -191,8 +201,8 @@ pub fn define_glk_or_mtk_view(superclass: &Class) -> *const Class {
             touches_ended as extern "C" fn(&Object, Sel, ObjcId, ObjcId),
         );
         decl.add_method(
-            sel!(touchesCanceled: withEvent:),
-            touches_canceled as extern "C" fn(&Object, Sel, ObjcId, ObjcId),
+            sel!(touchesCancelled: withEvent:),
+            touches_cancelled as extern "C" fn(&Object, Sel, ObjcId, ObjcId),
         );
     }
 
@@ -233,19 +243,6 @@ pub fn define_glk_or_mtk_view_dlg(superclass: &Class) -> *const Class {
 
     extern "C" fn draw_in_rect(this: &Object, _: Sel, _: ObjcId, _: ObjcId) {
         let payload = get_window_payload(this);
-        if payload.event_handler.is_none() {
-            let f = payload.f.take().unwrap();
-
-            if tl_display::with(|d| d.gfx_api == AppleGfxApi::OpenGl) {
-                crate::native::gl::load_gl_funcs(|proc| {
-                    let name = std::ffi::CString::new(proc).unwrap();
-
-                    unsafe { get_proc_address(name.as_ptr() as _) }
-                });
-            }
-
-            payload.event_handler = Some(f());
-        }
 
         let main_screen: ObjcId = unsafe { msg_send![class!(UIScreen), mainScreen] };
         let screen_rect: NSRect = unsafe { msg_send![main_screen, bounds] };
@@ -263,6 +260,59 @@ pub fn define_glk_or_mtk_view_dlg(superclass: &Class) -> *const Class {
             )
         };
 
+        if payload.event_handler.is_none() {
+            let f = payload.f.take().unwrap();
+
+            if tl_display::with(|d| d.gfx_api == AppleGfxApi::OpenGl) {
+                gl::load_gl_funcs(|proc| {
+                    let name = std::ffi::CString::new(proc).unwrap();
+
+                    unsafe { get_proc_address(name.as_ptr() as _) }
+                });
+            } else {
+                panic!("Non-GL backend unsupported with Skia");
+            }
+
+            let skia_ctx = {
+                // Skia initialization on OpenGL ES
+                use skia_safe::gpu::{gl::FramebufferInfo, DirectContext};
+                use std::convert::TryInto;
+
+                let interface = skia_safe::gpu::gl::Interface::new_load_with(|proc| {
+                    if proc == "eglGetCurrentDisplay" {
+                        return std::ptr::null();
+                    }
+                    let name = std::ffi::CString::new(proc).unwrap();
+                    unsafe {
+                        match get_proc_address(name.as_ptr() as _) {
+                            Some(procaddr) => procaddr as *const std::ffi::c_void,
+                            None => std::ptr::null(),
+                        }
+                    }
+                })
+                .expect("Failed to create Skia <-> OpenGL interface");
+
+                let dctx = DirectContext::new_gl(Some(interface), None)
+                    .expect("Failed to create Skia's direct context");
+
+                let fb_info = {
+                    let mut fboid: gl::GLint = 0;
+                    unsafe {
+                        gl::glGetIntegerv(gl::GL_FRAMEBUFFER_BINDING, &mut fboid);
+                    }
+
+                    FramebufferInfo {
+                        fboid: fboid.try_into().unwrap(),
+                        format: gl::GL_RGBA8,
+                    }
+                };
+
+                SkiaContext::new(dctx, fb_info, screen_width, screen_height)
+            };
+
+            payload.event_handler = Some((f(), skia_ctx));
+        }
+
         if tl_display::with(|d| d.data.screen_width != screen_width)
             || tl_display::with(|d| d.data.screen_height != screen_height)
         {
@@ -270,14 +320,14 @@ pub fn define_glk_or_mtk_view_dlg(superclass: &Class) -> *const Class {
                 d.data.screen_width = screen_width;
                 d.data.screen_height = screen_height;
             });
-            if let Some(ref mut event_handler) = payload.event_handler {
-                event_handler.resize_event(screen_width as _, screen_height as _);
+            if let Some((ref mut event_handler, ref mut skia_ctx)) = &mut payload.event_handler {
+                event_handler.resize_event(skia_ctx, screen_width as _, screen_height as _);
             }
         }
 
-        if let Some(ref mut event_handler) = payload.event_handler {
-            event_handler.update();
-            event_handler.draw();
+        if let Some((ref mut event_handler, ref mut skia_ctx)) = &mut payload.event_handler {
+            event_handler.update(skia_ctx);
+            event_handler.draw(skia_ctx);
         }
     }
     // wrapper to make sel! macros happy
