@@ -643,10 +643,6 @@ where
         use std::convert::TryInto;
 
         let interface = skia_safe::gpu::gl::Interface::new_load_with(|proc| {
-            if proc == "eglGetCurrentDisplay" {
-                return std::ptr::null();
-            }
-
             let name = std::ffi::CString::new(proc).unwrap();
             let get_procaddr = (egl_lib.eglGetProcAddress).expect("non-null function pointer");
 
