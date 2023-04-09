@@ -175,7 +175,10 @@ pub fn simple_rectangle(
 }
 
 fn main() {
-    miniquad::start(conf::Conf::default(), || {
+    miniquad::start(conf::Conf {
+        high_dpi: true,
+        ..Default::default()
+    }, || {
         Box::new(Stage {
             pointers: [
                 // pointers for fingers
