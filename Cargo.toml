@@ -44,5 +44,10 @@ quad-rand = "0.1"
 [[example]]
 name = "skia"
 
+[package.metadata.android]
+# rust-skia does not support cross-compilation to Android on ARMv7.
+# ARMv7 is a 32-bit ARM architecture though, so it probably doesn't matter for our use-case.
+build_targets = [ "aarch64-linux-android", "i686-linux-android", "x86_64-linux-android" ]
+
 [package.metadata.android.activity_attributes]
 "android:exported" = "true"
