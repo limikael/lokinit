@@ -126,6 +126,14 @@ pub fn define_glk_or_mtk_view(superclass: &Class) -> *const Class {
             for touch_id in 0..size {
                 let ios_touch: ObjcId = msg_send![enumerator, nextObject];
                 let mut ios_pos: NSPoint = msg_send![ios_touch, locationInView: this];
+
+                tl_display::with(|d| {
+                    if d.data.high_dpi {
+                        ios_pos.x *= 2.;
+                        ios_pos.y *= 2.;
+                    }
+                });
+
                 callback(touch_id, ios_pos.x as _, ios_pos.y as _);
             }
         }
