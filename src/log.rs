@@ -2,8 +2,7 @@
 ///
 /// Most of the code gleaned from log-rs crate
 ///
-/// Will send log calls like debug!(), warn!() and error!() to appropriate console_* call on wasm
-/// and just println! on PC.
+/// Will send log calls like debug!(), warn!() and error!() to just println! on PC.
 /// If you need better control of log messages - just dont use "log-impl" feature and use appropriate loggers from log-rs
 use std::cmp;
 
@@ -178,34 +177,13 @@ macro_rules! __log_line {
     };
 }
 
-#[cfg(not(any(target_arch = "wasm32", target_os = "android", target_os = "ios")))]
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
 pub fn __private_api_log_lit(
     message: &str,
     _level: Level,
     &(_target, _module_path, _file, _line): &(&str, &'static str, &'static str, u32),
 ) {
     eprintln!("{}", message);
-}
-
-#[cfg(target_arch = "wasm32")]
-pub fn __private_api_log_lit(
-    message: &str,
-    level: Level,
-    &(_target, _module_path, _file, _line): &(&str, &'static str, &'static str, u32),
-) {
-    use crate::native::wasm;
-    use std::ffi::CString;
-
-    let log_fn = match level {
-        Level::Debug => wasm::console_debug,
-        Level::Warn => wasm::console_warn,
-        Level::Info => wasm::console_info,
-        Level::Trace => wasm::console_debug,
-        Level::Error => wasm::console_error,
-    };
-    let msg = CString::new(message).unwrap_or_else(|_| panic!());
-
-    unsafe { log_fn(msg.as_ptr()) };
 }
 
 #[cfg(target_os = "android")]
