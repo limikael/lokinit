@@ -118,7 +118,7 @@ mod tl_display {
     fn with_native_display(f: &mut dyn FnMut(&mut dyn crate::NativeDisplay)) {
         DISPLAY.with(|d| {
             let mut d = d.borrow_mut();
-            let mut d = d.as_mut().unwrap();
+            let d = d.as_mut().unwrap();
             f(&mut *d);
         })
     }
@@ -126,7 +126,7 @@ mod tl_display {
     pub(super) fn with<T>(mut f: impl FnMut(&mut AndroidDisplay) -> T) -> T {
         DISPLAY.with(|d| {
             let mut d = d.borrow_mut();
-            let mut d = d.as_mut().unwrap();
+            let d = d.as_mut().unwrap();
             f(&mut *d)
         })
     }
@@ -245,7 +245,7 @@ impl MainThreadState {
             ndk_sys::ANativeWindow_release(self.window);
         }
         self.window = window;
-        if self.surface.is_null() == false {
+        if !self.surface.is_null() {
             self.destroy_surface();
         }
 
@@ -345,7 +345,7 @@ impl MainThreadState {
     fn frame(&mut self) {
         self.event_handler.update(&mut self.skia_ctx);
 
-        if self.surface.is_null() == false {
+        if !self.surface.is_null() {
             self.event_handler.draw(&mut self.skia_ctx);
 
             unsafe {
@@ -425,15 +425,13 @@ where
         // sometimes before launching an app android will show a permission dialog
         // it is important to create GL context only after a first SurfaceChanged
         let (window, screen_width, screen_height) = 'a: loop {
-            match rx.try_recv() {
-                Ok(Message::SurfaceChanged {
-                    window,
-                    width,
-                    height,
-                }) => {
-                    break 'a (window, width as f32, height as f32);
-                }
-                _ => {}
+            if let Ok(Message::SurfaceChanged {
+                window,
+                width,
+                height,
+            }) = rx.try_recv()
+            {
+                break 'a (window, width as f32, height as f32);
             }
         };
 
@@ -641,8 +639,8 @@ extern "C" fn Java_quad_1native_QuadNative_surfaceOnTouch(
     send_message(Message::Touch {
         phase,
         touch_id: touch_id as _,
-        x: x as f32,
-        y: y as f32,
+        x,
+        y,
     });
 }
 
