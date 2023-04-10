@@ -1,14 +1,27 @@
-use miniquad::*;
+#![allow(clippy::unusual_byte_groupings)]
+
 use miniquad::skia::SkiaContext;
+use miniquad::window::set_fullscreen;
+use miniquad::*;
 
 struct Stage {
-    ctx: GlContext,
+    fullscreen: bool,
 }
-impl EventHandler for Stage {
-    fn update(&mut self, _skia_ctx: &mut SkiaContext) {}
 
-    fn draw(&mut self, _skia_ctx: &mut SkiaContext) {
-        self.ctx.clear(Some((0., 1., 0., 1.)), None, None);
+impl EventHandler for Stage {
+    fn update(&mut self, _: &mut SkiaContext) {}
+
+    fn draw(&mut self, skia_ctx: &mut SkiaContext) {
+        skia_ctx.surface.canvas().clear(0xff_ff84c6);
+        skia_ctx.dctx.flush(None);
+    }
+
+    fn key_up_event(&mut self, _: &mut SkiaContext, keycode: KeyCode, _: KeyMods) {
+        if keycode == KeyCode::F {
+            self.fullscreen = !self.fullscreen;
+            set_fullscreen(self.fullscreen);
+            dbg!(self.fullscreen);
+        }
     }
 }
 
@@ -21,10 +34,6 @@ fn main() {
             fullscreen: true,
             ..Default::default()
         },
-        || {
-            Box::new(Stage {
-                ctx: GlContext::new(),
-            })
-        },
+        || Box::new(Stage { fullscreen: false }),
     );
 }

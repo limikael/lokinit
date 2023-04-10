@@ -1,7 +1,6 @@
 pub mod conf;
 mod event;
 pub mod fs;
-pub mod graphics;
 
 pub mod skia;
 
@@ -11,10 +10,6 @@ pub mod native;
 pub mod log;
 
 pub use event::*;
-
-pub use graphics::*;
-
-mod default_icon;
 
 pub use native::{gl, NativeDisplay};
 
@@ -149,28 +144,6 @@ pub mod window {
     /// Only works on Android right now.
     pub fn show_keyboard(show: bool) {
         with_native_display!(d, d.show_keyboard(show))
-    }
-
-    /// The same as
-    /// ```ignore
-    /// if metal {
-    ///    Box::new(MetalContext::new())
-    /// } else {
-    ///   Box::new(GlContext::new())
-    /// };
-    /// ```
-    /// but under #[cfg] gate to avoid MetalContext on non-apple platforms
-    pub fn new_rendering_backend() -> Box<dyn RenderingBackend> {
-        #[cfg(target_vendor = "apple")]
-        {
-            if with_native_display!(d, d.apple_gfx_api() == conf::AppleGfxApi::Metal) {
-                Box::new(MetalContext::new())
-            } else {
-                Box::new(GlContext::new())
-            }
-        }
-        #[cfg(not(target_vendor = "apple"))]
-        Box::new(GlContext::new())
     }
 
     #[cfg(target_vendor = "apple")]

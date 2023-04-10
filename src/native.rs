@@ -86,5 +86,3 @@ pub mod ios;
 pub mod egl;
 
 pub mod gl;
-
-pub mod query_stab;

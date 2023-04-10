@@ -145,45 +145,9 @@ pub struct Conf {
     /// Determines if the application user can resize the window
     pub window_resizable: bool,
 
-    /// Miniquad allows to change the window icon programmatically.
-    /// The icon will be used as
-    /// - taskbar and titlebar icons on Windows.
-    /// - TODO: favicon on HTML5
-    /// - TODO: taskbar and titlebar(highly dependent on the WM) icons on Linux
-    /// - TODO: dock and titlebar icon on  MacOs
-    pub icon: Option<Icon>,
-
     /// Platform specific settings. Hints to OS for context creation, driver-specific
     /// settings etc.
     pub platform: Platform,
-}
-
-/// Icon image in three levels of detail.
-#[derive(Clone)]
-pub struct Icon {
-    /// 16 * 16 image of RGBA pixels (each 4 * u8) in row-major order.
-    pub small: [u8; 16 * 16 * 4],
-    /// 32 x 32 image of RGBA pixels (each 4 * u8) in row-major order.
-    pub medium: [u8; 32 * 32 * 4],
-    /// 64 x 64 image of RGBA pixels (each 4 * u8) in row-major order.
-    pub big: [u8; 64 * 64 * 4],
-}
-
-impl Icon {
-    pub fn miniquad_logo() -> Icon {
-        Icon {
-            small: crate::default_icon::SMALL,
-            medium: crate::default_icon::MEDIUM,
-            big: crate::default_icon::BIG,
-        }
-    }
-}
-// Printing 64x64 array with a default formatter is not meaningfull,
-// so debug will skip the data fields of an Icon
-impl std::fmt::Debug for Icon {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("Icon").finish()
-    }
 }
 
 // reasonable defaults for PC and mobiles are slightly different
@@ -198,7 +162,6 @@ impl Default for Conf {
             fullscreen: false,
             sample_count: 1,
             window_resizable: true,
-            icon: Some(Icon::miniquad_logo()),
             platform: Default::default(),
         }
     }
@@ -215,7 +178,6 @@ impl Default for Conf {
             fullscreen: true,
             sample_count: 1,
             window_resizable: false,
-            icon: Some(Icon::miniquad_logo()),
             platform: Default::default(),
         }
     }
