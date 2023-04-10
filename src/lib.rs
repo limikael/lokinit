@@ -18,25 +18,6 @@ mod default_icon;
 
 pub use native::{gl, NativeDisplay};
 
-pub mod date {
-    #[cfg(not(target_arch = "wasm32"))]
-    pub fn now() -> f64 {
-        use std::time::SystemTime;
-
-        let time = SystemTime::now()
-            .duration_since(SystemTime::UNIX_EPOCH)
-            .unwrap_or_else(|e| panic!("{}", e));
-        time.as_secs_f64()
-    }
-
-    #[cfg(target_arch = "wasm32")]
-    pub fn now() -> f64 {
-        use crate::native;
-
-        unsafe { native::wasm::now() }
-    }
-}
-
 use std::cell::RefCell;
 thread_local! {
     #[allow(clippy::type_complexity)]
@@ -113,7 +94,6 @@ pub mod window {
     }
 
     /// Capture mouse cursor to the current window
-    /// On WASM this will automatically hide cursor
     /// On desktop this will bound cursor to windows border
     /// NOTICE: on desktop cursor will not be automatically released after window lost focus
     ///         so set_cursor_grab(false) on window's focus lost is recommended.
@@ -249,11 +229,6 @@ where
     #[cfg(target_os = "android")]
     unsafe {
         native::android::run(conf, f);
-    }
-
-    #[cfg(target_arch = "wasm32")]
-    {
-        native::wasm::run(&conf, f);
     }
 
     #[cfg(target_os = "windows")]

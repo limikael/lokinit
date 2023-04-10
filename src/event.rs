@@ -248,8 +248,7 @@ pub trait EventHandler {
 
     /// A file has been dropped over the application.
     /// Applications can request the number of dropped files with
-    /// `ctx.dropped_file_count()`, path of an individual file with
-    /// `ctx.dropped_file_path()`, and for wasm targets the file bytes
-    /// can be requested with `ctx.dropped_file_bytes()`.
+    /// `ctx.dropped_file_count()`, and the path of an individual
+    /// file with `ctx.dropped_file_path()`.
     fn files_dropped_event(&mut self, _skia_ctx: &mut SkiaContext) {}
 }

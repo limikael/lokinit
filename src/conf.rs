@@ -121,11 +121,11 @@ impl Default for Platform {
 pub struct Conf {
     /// Title of the window, defaults to an empty string.
     pub window_title: String,
-    /// The preferred width of the window, ignored on wasm/android.
+    /// The preferred width of the window, ignored on android.
     ///
     /// Default: 800
     pub window_width: i32,
-    /// The preferred height of the window, ignored on wasm/android.
+    /// The preferred height of the window, ignored on android.
     ///
     /// Default: 600
     pub window_height: i32,
@@ -133,7 +133,7 @@ pub struct Conf {
     ///
     /// Default: false
     pub high_dpi: bool,
-    /// Whether the window should be created in fullscreen mode, ignored on wasm/android.
+    /// Whether the window should be created in fullscreen mode, ignored on android.
     ///
     /// Default: false
     pub fullscreen: bool,

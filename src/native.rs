@@ -1,7 +1,6 @@
 /// Most backends happened to have exactly the same fields in their *Display struct
 /// Maybe something like this may in some public API some day?
 /// (important data from this struct is available through function like Context::screen_size)
-#[allow(dead_code)]
 pub(crate) struct NativeDisplayData {
     pub screen_width: i32,
     pub screen_height: i32,
@@ -74,9 +73,6 @@ pub mod windows;
 #[cfg(target_os = "android")]
 pub use android::*;
 
-#[cfg(target_arch = "wasm32")]
-pub mod wasm;
-
 #[cfg(any(target_os = "macos", target_os = "ios"))]
 pub mod apple;
 
@@ -89,12 +85,6 @@ pub mod ios;
 #[cfg(any(target_os = "android", target_os = "linux"))]
 pub mod egl;
 
-// there is no glGetProcAddr on webgl, so its impossible to make "gl" module work
-// on macos.. well, there is, but way easier to just statically link to gl
-#[cfg(not(target_arch = "wasm32"))]
 pub mod gl;
-
-#[cfg(target_arch = "wasm32")]
-pub use wasm::webgl as gl;
 
 pub mod query_stab;
