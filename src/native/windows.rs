@@ -195,9 +195,9 @@ impl crate::native::NativeDisplay for WindowsDisplay {
         let win_style: DWORD = get_win_style(self.fullscreen, self.window_resizable);
 
         unsafe {
-            #[cfg(target_arch  = "x86_64")]
+            #[cfg(target_arch = "x86_64")]
             SetWindowLongPtrA(self.wnd, GWLP_USERDATA, win_style as _);
-            #[cfg(target_arch  = "i686")]
+            #[cfg(target_arch = "i686")]
             SetWindowLong(self.wnd, GWLP_USERDATA, win_style as _);
 
             if self.fullscreen {

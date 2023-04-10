@@ -175,27 +175,29 @@ pub fn simple_rectangle(
 }
 
 fn main() {
-    miniquad::start(conf::Conf {
-        high_dpi: true,
-        ..Default::default()
-    }, || {
-        Box::new(Stage {
-            pointers: [
-                // pointers for fingers
-                Pointer::colored(0xff3737),
-                Pointer::colored(0xffaf37),
-                Pointer::colored(0xd7ff37),
-                Pointer::colored(0x5fff37),
-                Pointer::colored(0x37ff87),
-                Pointer::colored(0x37ffff),
-                Pointer::colored(0x3787ff),
-                Pointer::colored(0x5f37ff),
-                Pointer::colored(0xd737ff),
-                Pointer::colored(0xff37af),
-
-                // pointer for mouse
-                Pointer::colored(0xbbddff),
-            ],
-        })
-    });
+    miniquad::start(
+        conf::Conf {
+            high_dpi: true,
+            ..Default::default()
+        },
+        || {
+            Box::new(Stage {
+                pointers: [
+                    // pointers for fingers
+                    Pointer::colored(0xff3737),
+                    Pointer::colored(0xffaf37),
+                    Pointer::colored(0xd7ff37),
+                    Pointer::colored(0x5fff37),
+                    Pointer::colored(0x37ff87),
+                    Pointer::colored(0x37ffff),
+                    Pointer::colored(0x3787ff),
+                    Pointer::colored(0x5f37ff),
+                    Pointer::colored(0xd737ff),
+                    Pointer::colored(0xff37af),
+                    // pointer for mouse
+                    Pointer::colored(0xbbddff),
+                ],
+            })
+        },
+    );
 }

@@ -459,7 +459,9 @@ impl ExtendedX11MainLoopData {
                 == (inner.libxi).xi_extension_opcode(&mut inner.libx11, inner.display) =>
             {
                 if (*event).xcookie.evtype == xi_input::XI_RawMotion {
-                    let (dx, dy) = inner.libxi.read_cookie(&mut (*event).xcookie, inner.display);
+                    let (dx, dy) = inner
+                        .libxi
+                        .read_cookie(&mut (*event).xcookie, inner.display);
                     event_handler.raw_mouse_motion(&mut self.skia_ctx, dx as f32, dy as f32);
                 }
             }

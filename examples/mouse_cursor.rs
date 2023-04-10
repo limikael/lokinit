@@ -1,5 +1,5 @@
-use miniquad::*;
 use miniquad::skia::SkiaContext;
+use miniquad::*;
 
 struct Stage {}
 
