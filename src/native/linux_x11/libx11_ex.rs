@@ -10,7 +10,7 @@ impl LibX11 {
             if !db.is_null() {
                 let mut value = XrmValue {
                     size: 0,
-                    addr: 0 as *mut libc::c_char,
+                    addr: std::ptr::null_mut::<libc::c_char>(),
                 };
                 let mut type_ = std::ptr::null_mut();
                 if (self.XrmGetResource)(
@@ -20,10 +20,10 @@ impl LibX11 {
                     &mut type_,
                     &mut value,
                 ) != 0
+                    && !type_.is_null()
+                    && libc::strcmp(type_, b"String\x00".as_ptr() as _) == 0
                 {
-                    if !type_.is_null() && libc::strcmp(type_, b"String\x00".as_ptr() as _) == 0 {
-                        dpi_scale = libc::atof(value.addr as *const _) as f32 / 96.0;
-                    }
+                    dpi_scale = libc::atof(value.addr as *const _) as f32 / 96.0;
                 }
                 (self.XrmDestroyDatabase)(db);
             }
@@ -37,7 +37,7 @@ impl LibX11 {
             event: *mut XErrorEvent,
         ) -> libc::c_int {
             println!("Error: {}", (*event).error_code);
-            return 0 as libc::c_int;
+            0 as libc::c_int
         }
 
         (self.XSetErrorHandler)(Some(
@@ -88,7 +88,7 @@ impl LibX11 {
             8 as libc::c_int,
             PropModeReplace,
             c_title.as_ptr() as *mut libc::c_uchar,
-            libc::strlen(c_title.as_ptr()) as libc::c_int,
+            c_title.as_bytes().len() as libc::c_int,
         );
         (self.XChangeProperty)(
             display,
@@ -98,7 +98,7 @@ impl LibX11 {
             8 as libc::c_int,
             PropModeReplace,
             c_title.as_ptr() as *mut libc::c_uchar,
-            libc::strlen(c_title.as_ptr()) as libc::c_int,
+            c_title.as_bytes().len() as libc::c_int,
         );
         (self.XFlush)(display);
     }
@@ -175,7 +175,7 @@ impl LibX11 {
         (self.XSetWMProtocols)(display, window, protocols.as_mut_ptr(), 1 as libc::c_int);
         let mut hints = (self.XAllocSizeHints)();
         (*hints).flags |= PWinGravity;
-        if conf.window_resizable == false {
+        if !conf.window_resizable {
             (*hints).flags |= PMinSize | PMaxSize;
             (*hints).min_width = conf.window_width;
             (*hints).min_height = conf.window_height;

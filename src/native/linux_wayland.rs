@@ -295,7 +295,7 @@ unsafe extern "C" fn xdg_toplevel_handle_configure(
     width: i32,
     height: i32,
     _states: *mut wl_array,
-) -> () {
+) {
     assert!(!data.is_null());
     let payload: &mut WaylandPayload = &mut *(data as *mut _);
 
@@ -382,10 +382,10 @@ where
         );
         (display.client.wl_display_roundtrip)(wdisplay);
 
-        assert!(display.compositor.is_null() == false);
-        assert!(display.xdg_wm_base.is_null() == false);
-        assert!(display.subcompositor.is_null() == false);
-        assert!(display.seat.is_null() == false);
+        assert!(!display.compositor.is_null());
+        assert!(!display.xdg_wm_base.is_null());
+        assert!(!display.subcompositor.is_null());
+        assert!(!display.seat.is_null());
 
         if display.decoration_manager.is_null() {
             eprintln!("Decoration manager not found, will draw fallback decorations");
@@ -405,7 +405,7 @@ where
             WL_COMPOSITOR_CREATE_SURFACE,
             display.client.wl_surface_interface
         );
-        assert!(display.surface.is_null() == false);
+        assert!(!display.surface.is_null());
 
         let xdg_surface: *mut extensions::xdg_shell::xdg_surface = wl_request_constructor!(
             display.client,
@@ -414,7 +414,7 @@ where
             &extensions::xdg_shell::xdg_surface_interface,
             display.surface
         );
-        assert!(xdg_surface.is_null() == false);
+        assert!(!xdg_surface.is_null());
 
         let xdg_surface_listener = extensions::xdg_shell::xdg_surface_listener {
             configure: Some(xdg_surface_handle_configure),
@@ -438,7 +438,7 @@ where
             extensions::xdg_shell::xdg_surface::get_toplevel,
             &extensions::xdg_shell::xdg_toplevel_interface
         );
-        assert!(display.xdg_toplevel.is_null() == false);
+        assert!(!display.xdg_toplevel.is_null());
 
         let xdg_toplevel_listener = extensions::xdg_shell::xdg_toplevel_listener {
             configure: Some(xdg_toplevel_handle_configure),
@@ -510,7 +510,7 @@ where
             SkiaContext::new(dctx, fb_info, conf.window_width, conf.window_height)
         };
 
-        if display.decoration_manager.is_null() == false {
+        if !display.decoration_manager.is_null() {
             let server_decoration: *mut extensions::xdg_decoration::zxdg_toplevel_decoration_v1 = wl_request_constructor!(
                 display.client,
                 display.decoration_manager,
@@ -518,7 +518,7 @@ where
                 &extensions::xdg_decoration::zxdg_toplevel_decoration_v1_interface,
                 display.xdg_toplevel
             );
-            assert!(server_decoration.is_null() == false);
+            assert!(!server_decoration.is_null());
 
             wl_request!(
                 display.client,
@@ -541,7 +541,7 @@ where
         let event_handler = (f.take().unwrap())();
         payload.ctx = Some((event_handler, skia_ctx));
 
-        while tl_display::with(|d| d.closed == false) {
+        while tl_display::with(|d| !d.closed) {
             (client.wl_display_dispatch_pending)(wdisplay);
 
             if let Some((ref mut event_handler, ref mut skia_ctx)) = payload.ctx {
