@@ -145,11 +145,6 @@ pub mod window {
     pub fn show_keyboard(show: bool) {
         with_native_display!(d, d.show_keyboard(show))
     }
-
-    #[cfg(target_vendor = "apple")]
-    pub(crate) fn apple_view() -> Option<crate::native::apple::frameworks::ObjcId> {
-        with_native_display!(d, d.apple_view())
-    }
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Hash, Eq)]

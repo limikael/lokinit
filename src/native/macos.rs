@@ -44,18 +44,12 @@ mod tl_display {
 
     fn with_native_display(f: &mut dyn FnMut(&mut dyn crate::NativeDisplay)) {
         DISPLAY.with(|d| {
-            let mut d = d.borrow_mut();
-            let mut d = d.as_mut().unwrap();
-            f(&mut *d);
+            f(&mut *d.borrow_mut().as_mut().unwrap());
         })
     }
 
     pub(super) fn with<T>(mut f: impl FnMut(&mut MacosDisplay) -> T) -> T {
-        DISPLAY.with(|d| {
-            let mut d = d.borrow_mut();
-            let mut d = d.as_mut().unwrap();
-            f(&mut *d)
-        })
+        DISPLAY.with(|d| f(&mut *d.borrow_mut().as_mut().unwrap()))
     }
 
     pub(super) fn set_display(display: MacosDisplay) {
@@ -219,7 +213,7 @@ pub fn define_app_delegate() -> *const Class {
 }
 
 pub fn define_cocoa_window_delegate() -> *const Class {
-    extern "C" fn window_should_close(this: &Object, _: Sel, _: ObjcId) -> BOOL {
+    extern "C" fn window_should_close(this: &mut Object, _: Sel, _: ObjcId) -> BOOL {
         let payload = get_window_payload(this);
 
         unsafe {
@@ -242,13 +236,13 @@ pub fn define_cocoa_window_delegate() -> *const Class {
             }
         }
         if tl_display::with(|d| d.data.quit_ordered) {
-            return YES;
+            YES
         } else {
-            return NO;
+            NO
         }
     }
 
-    extern "C" fn window_did_resize(this: &Object, _: Sel, _: ObjcId) {
+    extern "C" fn window_did_resize(this: &mut Object, _: Sel, _: ObjcId) {
         let payload = get_window_payload(this);
         if let Some((w, h)) = unsafe { tl_display::with(|d| d.update_dimensions()) } {
             if let Some((event_handler, skia_ctx)) = payload.context() {
@@ -257,7 +251,7 @@ pub fn define_cocoa_window_delegate() -> *const Class {
         }
     }
 
-    extern "C" fn window_did_change_screen(this: &Object, _: Sel, _: ObjcId) {
+    extern "C" fn window_did_change_screen(this: &mut Object, _: Sel, _: ObjcId) {
         let payload = get_window_payload(this);
         if let Some((w, h)) = unsafe { tl_display::with(|d| d.update_dimensions()) } {
             if let Some((event_handler, skia_ctx)) = payload.context() {
@@ -265,10 +259,10 @@ pub fn define_cocoa_window_delegate() -> *const Class {
             }
         }
     }
-    extern "C" fn window_did_enter_fullscreen(this: &Object, _: Sel, _: ObjcId) {
+    extern "C" fn window_did_enter_fullscreen(_: &Object, _: Sel, _: ObjcId) {
         tl_display::with(|d| d.fullscreen = true);
     }
-    extern "C" fn window_did_exit_fullscreen(this: &Object, _: Sel, _: ObjcId) {
+    extern "C" fn window_did_exit_fullscreen(_: &Object, _: Sel, _: ObjcId) {
         tl_display::with(|d| d.fullscreen = false);
     }
     let superclass = class!(NSObject);
@@ -278,16 +272,16 @@ pub fn define_cocoa_window_delegate() -> *const Class {
     unsafe {
         decl.add_method(
             sel!(windowShouldClose:),
-            window_should_close as extern "C" fn(&Object, Sel, ObjcId) -> BOOL,
+            window_should_close as extern "C" fn(&mut Object, Sel, ObjcId) -> BOOL,
         );
 
         decl.add_method(
             sel!(windowDidResize:),
-            window_did_resize as extern "C" fn(&Object, Sel, ObjcId),
+            window_did_resize as extern "C" fn(&mut Object, Sel, ObjcId),
         );
         decl.add_method(
             sel!(windowDidChangeScreen:),
-            window_did_change_screen as extern "C" fn(&Object, Sel, ObjcId),
+            window_did_change_screen as extern "C" fn(&mut Object, Sel, ObjcId),
         );
         decl.add_method(
             sel!(windowDidEnterFullScreen:),
@@ -314,18 +308,18 @@ unsafe fn get_proc_address(name: *const u8) -> Option<unsafe extern "C" fn()> {
             pub fn dlsym(handle: *mut c_void, symbol: *const c_char) -> *mut c_void;
         }
     }
-    static mut opengl: *mut std::ffi::c_void = std::ptr::null_mut();
+    static mut OPENGL: *mut std::ffi::c_void = std::ptr::null_mut();
 
-    if opengl.is_null() {
-        opengl = libc::dlopen(
+    if OPENGL.is_null() {
+        OPENGL = libc::dlopen(
             b"/System/Library/Frameworks/OpenGL.framework/Versions/Current/OpenGL\0".as_ptr() as _,
             libc::RTLD_LAZY,
         );
     }
 
-    assert!(!opengl.is_null());
+    assert!(!OPENGL.is_null());
 
-    let symbol = libc::dlsym(opengl, name as _);
+    let symbol = libc::dlsym(OPENGL, name as _);
     if symbol.is_null() {
         return None;
     }
@@ -334,7 +328,7 @@ unsafe fn get_proc_address(name: *const u8) -> Option<unsafe extern "C" fn()> {
 
 // methods for both metal or opengl view
 unsafe fn view_base_decl(decl: &mut ClassDecl) {
-    extern "C" fn mouse_moved(this: &Object, _sel: Sel, event: ObjcId) {
+    extern "C" fn mouse_moved(this: &mut Object, _sel: Sel, event: ObjcId) {
         let payload = get_window_payload(this);
 
         unsafe {
@@ -346,7 +340,7 @@ unsafe fn view_base_decl(decl: &mut ClassDecl) {
         }
     }
 
-    fn fire_mouse_event(this: &Object, event: ObjcId, down: bool, btn: MouseButton) {
+    fn fire_mouse_event(this: &mut Object, event: ObjcId, down: bool, btn: MouseButton) {
         let payload = get_window_payload(this);
 
         unsafe {
@@ -361,25 +355,25 @@ unsafe fn view_base_decl(decl: &mut ClassDecl) {
             }
         }
     }
-    extern "C" fn mouse_down(this: &Object, _sel: Sel, event: ObjcId) {
+    extern "C" fn mouse_down(this: &mut Object, _sel: Sel, event: ObjcId) {
         fire_mouse_event(this, event, true, MouseButton::Left);
     }
-    extern "C" fn mouse_up(this: &Object, _sel: Sel, event: ObjcId) {
+    extern "C" fn mouse_up(this: &mut Object, _sel: Sel, event: ObjcId) {
         fire_mouse_event(this, event, false, MouseButton::Left);
     }
-    extern "C" fn right_mouse_down(this: &Object, _sel: Sel, event: ObjcId) {
+    extern "C" fn right_mouse_down(this: &mut Object, _sel: Sel, event: ObjcId) {
         fire_mouse_event(this, event, true, MouseButton::Right);
     }
-    extern "C" fn right_mouse_up(this: &Object, _sel: Sel, event: ObjcId) {
+    extern "C" fn right_mouse_up(this: &mut Object, _sel: Sel, event: ObjcId) {
         fire_mouse_event(this, event, false, MouseButton::Right);
     }
-    extern "C" fn other_mouse_down(this: &Object, _sel: Sel, event: ObjcId) {
+    extern "C" fn other_mouse_down(this: &mut Object, _sel: Sel, event: ObjcId) {
         fire_mouse_event(this, event, true, MouseButton::Middle);
     }
-    extern "C" fn other_mouse_up(this: &Object, _sel: Sel, event: ObjcId) {
+    extern "C" fn other_mouse_up(this: &mut Object, _sel: Sel, event: ObjcId) {
         fire_mouse_event(this, event, false, MouseButton::Middle);
     }
-    extern "C" fn scroll_wheel(this: &Object, _sel: Sel, event: ObjcId) {
+    extern "C" fn scroll_wheel(this: &mut Object, _sel: Sel, event: ObjcId) {
         let payload = get_window_payload(this);
         unsafe {
             let mut dx: f64 = msg_send![event, scrollingDeltaX];
@@ -395,14 +389,13 @@ unsafe fn view_base_decl(decl: &mut ClassDecl) {
         }
     }
     extern "C" fn reset_cursor_rects(this: &Object, _sel: Sel) {
-        let payload = get_window_payload(this);
         unsafe {
             let cursor_id = tl_display::with(|d| {
                 let current_cursor = d.current_cursor;
                 let cursor_id = *d
                     .cursors
                     .entry(current_cursor)
-                    .or_insert_with(|| load_mouse_cursor(current_cursor.clone()));
+                    .or_insert_with(|| load_mouse_cursor(current_cursor));
                 assert!(!cursor_id.is_null());
                 cursor_id
             });
@@ -416,26 +409,26 @@ unsafe fn view_base_decl(decl: &mut ClassDecl) {
         }
     }
 
-    extern "C" fn key_down(this: &Object, _sel: Sel, event: ObjcId) {
+    extern "C" fn key_down(this: &mut Object, _sel: Sel, event: ObjcId) {
         let payload = get_window_payload(this);
-        let mods = get_event_key_modifier(event);
+        let mods = unsafe { get_event_key_modifier(event) };
         let repeat: bool = unsafe { msg_send!(event, isARepeat) };
-        if let Some(key) = get_event_keycode(event) {
+        if let Some(key) = unsafe { get_event_keycode(event) } {
             if let Some((event_handler, skia_ctx)) = payload.context() {
                 event_handler.key_down_event(skia_ctx, key, mods, repeat);
             }
         }
 
-        if let Some(character) = get_event_char(event) {
+        if let Some(character) = unsafe { get_event_char(event) } {
             if let Some((event_handler, skia_ctx)) = payload.context() {
                 event_handler.char_event(skia_ctx, character, mods, repeat);
             }
         }
     }
-    extern "C" fn key_up(this: &Object, _sel: Sel, event: ObjcId) {
+    extern "C" fn key_up(this: &mut Object, _sel: Sel, event: ObjcId) {
         let payload = get_window_payload(this);
-        let mods = get_event_key_modifier(event);
-        if let Some(key) = get_event_keycode(event) {
+        let mods = unsafe { get_event_key_modifier(event) };
+        if let Some(key) = unsafe { get_event_keycode(event) } {
             if let Some((event_handler, skia_ctx)) = payload.context() {
                 event_handler.key_up_event(skia_ctx, key, mods);
             }
@@ -457,66 +450,68 @@ unsafe fn view_base_decl(decl: &mut ClassDecl) {
     );
     decl.add_method(
         sel!(mouseMoved:),
-        mouse_moved as extern "C" fn(&Object, Sel, ObjcId),
+        mouse_moved as extern "C" fn(&mut Object, Sel, ObjcId),
     );
     decl.add_method(
         sel!(mouseDragged:),
-        mouse_moved as extern "C" fn(&Object, Sel, ObjcId),
+        mouse_moved as extern "C" fn(&mut Object, Sel, ObjcId),
     );
     decl.add_method(
         sel!(rightMouseDragged:),
-        mouse_moved as extern "C" fn(&Object, Sel, ObjcId),
+        mouse_moved as extern "C" fn(&mut Object, Sel, ObjcId),
     );
     decl.add_method(
         sel!(otherMouseDragged:),
-        mouse_moved as extern "C" fn(&Object, Sel, ObjcId),
+        mouse_moved as extern "C" fn(&mut Object, Sel, ObjcId),
     );
     decl.add_method(
         sel!(mouseDown:),
-        mouse_down as extern "C" fn(&Object, Sel, ObjcId),
+        mouse_down as extern "C" fn(&mut Object, Sel, ObjcId),
     );
     decl.add_method(
         sel!(mouseUp:),
-        mouse_up as extern "C" fn(&Object, Sel, ObjcId),
+        mouse_up as extern "C" fn(&mut Object, Sel, ObjcId),
     );
     decl.add_method(
         sel!(rightMouseDown:),
-        right_mouse_down as extern "C" fn(&Object, Sel, ObjcId),
+        right_mouse_down as extern "C" fn(&mut Object, Sel, ObjcId),
     );
     decl.add_method(
         sel!(rightMouseUp:),
-        right_mouse_up as extern "C" fn(&Object, Sel, ObjcId),
+        right_mouse_up as extern "C" fn(&mut Object, Sel, ObjcId),
     );
     decl.add_method(
         sel!(otherMouseDown:),
-        other_mouse_down as extern "C" fn(&Object, Sel, ObjcId),
+        other_mouse_down as extern "C" fn(&mut Object, Sel, ObjcId),
     );
     decl.add_method(
         sel!(otherMouseUp:),
-        other_mouse_up as extern "C" fn(&Object, Sel, ObjcId),
+        other_mouse_up as extern "C" fn(&mut Object, Sel, ObjcId),
     );
     decl.add_method(
         sel!(scrollWheel:),
-        scroll_wheel as extern "C" fn(&Object, Sel, ObjcId),
+        scroll_wheel as extern "C" fn(&mut Object, Sel, ObjcId),
     );
     decl.add_method(
         sel!(keyDown:),
-        key_down as extern "C" fn(&Object, Sel, ObjcId),
+        key_down as extern "C" fn(&mut Object, Sel, ObjcId),
     );
-    decl.add_method(sel!(keyUp:), key_up as extern "C" fn(&Object, Sel, ObjcId));
+    decl.add_method(
+        sel!(keyUp:),
+        key_up as extern "C" fn(&mut Object, Sel, ObjcId),
+    );
 }
 
 pub fn define_opengl_view_class() -> *const Class {
     //extern "C" fn dealloc(this: &Object, _sel: Sel) {}
 
-    extern "C" fn reshape(this: &Object, _sel: Sel) {
-        let payload = get_window_payload(this);
-
+    extern "C" fn reshape(this: &mut Object, _sel: Sel) {
         unsafe {
             let superclass = superclass(this);
             let () = msg_send![super(this, superclass), reshape];
 
             if let Some((w, h)) = tl_display::with(|d| d.update_dimensions()) {
+                let payload = get_window_payload(this);
                 if let Some((event_handler, skia_ctx)) = payload.context() {
                     event_handler.resize_event(skia_ctx, w as _, h as _);
                 }
@@ -524,7 +519,7 @@ pub fn define_opengl_view_class() -> *const Class {
         }
     }
 
-    extern "C" fn draw_rect(this: &Object, _sel: Sel, _rect: NSRect) {
+    extern "C" fn draw_rect(this: &mut Object, _sel: Sel, _rect: NSRect) {
         let payload = get_window_payload(this);
         if let Some((event_handler, skia_ctx)) = payload.context() {
             event_handler.update(skia_ctx);
@@ -543,8 +538,7 @@ pub fn define_opengl_view_class() -> *const Class {
         }
     }
 
-    extern "C" fn prepare_open_gl(this: &Object, _sel: Sel) {
-        let payload = get_window_payload(this);
+    extern "C" fn prepare_open_gl(this: &mut Object, _sel: Sel) {
         unsafe {
             let superclass = superclass(this);
             let () = msg_send![super(this, superclass), prepareOpenGL];
@@ -606,6 +600,7 @@ pub fn define_opengl_view_class() -> *const Class {
             )
         };
 
+        let payload = get_window_payload(this);
         let f = payload.f.take().unwrap();
         payload.ctx = Some((f(), skia_ctx));
     }
@@ -626,12 +621,12 @@ pub fn define_opengl_view_class() -> *const Class {
 
         decl.add_method(
             sel!(prepareOpenGL),
-            prepare_open_gl as extern "C" fn(&Object, Sel),
+            prepare_open_gl as extern "C" fn(&mut Object, Sel),
         );
-        decl.add_method(sel!(reshape), reshape as extern "C" fn(&Object, Sel));
+        decl.add_method(sel!(reshape), reshape as extern "C" fn(&mut Object, Sel));
         decl.add_method(
             sel!(drawRect:),
-            draw_rect as extern "C" fn(&Object, Sel, NSRect),
+            draw_rect as extern "C" fn(&mut Object, Sel, NSRect),
         );
 
         view_base_decl(&mut decl);
@@ -655,7 +650,8 @@ pub fn define_metal_view_class() -> *const Class {
 
     // TODO: REMOVE THIS LATER
     #[allow(unreachable_code)]
-    extern "C" fn draw_rect(this: &Object, _sel: Sel, _rect: NSRect) {
+    #[allow(unused_variables)]
+    extern "C" fn draw_rect(this: &mut Object, _sel: Sel, _rect: NSRect) {
         let payload = get_window_payload(this);
 
         if payload.ctx.is_none() {
@@ -665,7 +661,8 @@ pub fn define_metal_view_class() -> *const Class {
                 use std::convert::TryInto;
 
                 // TODO: Skia <-> Metal interface
-                let interface = todo!();
+                #[allow(clippy::diverging_sub_expression)]
+                let interface = unimplemented!();
 
                 // let interface = skia_safe::gpu::gl::Interface::new_load_with(|proc| {
                 //     if proc == "eglGetCurrentDisplay" {
@@ -725,7 +722,7 @@ pub fn define_metal_view_class() -> *const Class {
         );
         decl.add_method(
             sel!(drawRect:),
-            draw_rect as extern "C" fn(&Object, Sel, NSRect),
+            draw_rect as extern "C" fn(&mut Object, Sel, NSRect),
         );
 
         view_base_decl(&mut decl);
@@ -734,14 +731,14 @@ pub fn define_metal_view_class() -> *const Class {
     return decl.register();
 }
 
-fn get_window_payload(this: &Object) -> &mut WindowPayload {
+fn get_window_payload(this: &mut Object) -> &mut WindowPayload {
     unsafe {
         let ptr: *mut c_void = *this.get_ivar("display_ptr");
         &mut *(ptr as *mut WindowPayload)
     }
 }
 
-unsafe fn create_metal_view(window_frame: NSRect, sample_count: i32, high_dpi: bool) -> ObjcId {
+unsafe fn create_metal_view(_window_frame: NSRect, sample_count: i32, _high_dpi: bool) -> ObjcId {
     let mtl_device_obj = MTLCreateSystemDefaultDevice();
     let view_class = define_metal_view_class();
     let view: ObjcId = msg_send![view_class, alloc];
@@ -761,20 +758,21 @@ unsafe fn create_metal_view(window_frame: NSRect, sample_count: i32, high_dpi: b
 unsafe fn create_opengl_view(window_frame: NSRect, sample_count: i32, high_dpi: bool) -> ObjcId {
     use NSOpenGLPixelFormatAttribute::*;
 
-    let mut attrs: Vec<u32> = vec![];
+    let mut attrs: Vec<u32> = vec![
+        NSOpenGLPFAAccelerated as _,
+        NSOpenGLPFADoubleBuffer as _,
+        NSOpenGLPFAOpenGLProfile as _,
+        NSOpenGLPFAOpenGLProfiles::NSOpenGLProfileVersion3_2Core as _,
+        NSOpenGLPFAColorSize as _,
+        24,
+        NSOpenGLPFAAlphaSize as _,
+        8,
+        NSOpenGLPFADepthSize as _,
+        24,
+        NSOpenGLPFAStencilSize as _,
+        8,
+    ];
 
-    attrs.push(NSOpenGLPFAAccelerated as _);
-    attrs.push(NSOpenGLPFADoubleBuffer as _);
-    attrs.push(NSOpenGLPFAOpenGLProfile as _);
-    attrs.push(NSOpenGLPFAOpenGLProfiles::NSOpenGLProfileVersion3_2Core as _);
-    attrs.push(NSOpenGLPFAColorSize as _);
-    attrs.push(24);
-    attrs.push(NSOpenGLPFAAlphaSize as _);
-    attrs.push(8);
-    attrs.push(NSOpenGLPFADepthSize as _);
-    attrs.push(24);
-    attrs.push(NSOpenGLPFAStencilSize as _);
-    attrs.push(8);
     if sample_count > 1 {
         attrs.push(NSOpenGLPFAMultisample as _);
         attrs.push(NSOpenGLPFASampleBuffers as _);
@@ -862,7 +860,7 @@ where
     let window: ObjcId = msg_send![
         window,
         initWithContentRect: window_frame
-        styleMask: window_masks as u64
+        styleMask: window_masks
         backing: NSBackingStoreType::NSBackingStoreBuffered as u64
         defer: NO
     ];

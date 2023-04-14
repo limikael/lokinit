@@ -10,7 +10,7 @@ use crate::{
     CursorIcon,
 };
 
-pub fn nsstring_to_string(string: ObjcId) -> String {
+pub unsafe fn nsstring_to_string(string: ObjcId) -> String {
     unsafe {
         let utf8_string: *const std::os::raw::c_uchar = msg_send![string, UTF8String];
         let utf8_len: usize = msg_send![string, lengthOfBytesUsingEncoding: UTF8_ENCODING];
@@ -67,7 +67,7 @@ pub unsafe fn cfstring_ref_to_string(cfstring: CFStringRef) -> String {
         kCFStringEncodingUTF8,
         0,
         false,
-        0 as *mut u8,
+        std::ptr::null_mut::<u8>(),
         0,
         &mut num_bytes,
     );
@@ -84,7 +84,7 @@ pub unsafe fn cfstring_ref_to_string(cfstring: CFStringRef) -> String {
         false,
         buffer.as_mut_ptr() as *mut u8,
         num_bytes,
-        0 as *mut u64,
+        std::ptr::null_mut::<u64>(),
     );
     if let Ok(val) = String::from_utf8(buffer) {
         val
@@ -95,7 +95,7 @@ pub unsafe fn cfstring_ref_to_string(cfstring: CFStringRef) -> String {
 
 pub fn load_webkit_cursor(cursor_name_str: &str) -> ObjcId {
     unsafe {
-        static CURSOR_ROOT: &'static str = "/System/Library/Frameworks/ApplicationServices.framework/Versions/A/Frameworks/HIServices.framework/Versions/A/Resources/cursors";
+        static CURSOR_ROOT: &str = "/System/Library/Frameworks/ApplicationServices.framework/Versions/A/Frameworks/HIServices.framework/Versions/A/Resources/cursors";
         let cursor_root = str_to_nsstring(CURSOR_ROOT);
         let cursor_name = str_to_nsstring(cursor_name_str);
         let cursor_pdf = str_to_nsstring("cursor.pdf");
@@ -129,7 +129,7 @@ pub fn load_webkit_cursor(cursor_name_str: &str) -> ObjcId {
     }
 }
 
-pub fn get_event_char(event: ObjcId) -> Option<char> {
+pub unsafe fn get_event_char(event: ObjcId) -> Option<char> {
     unsafe {
         let characters: ObjcId = msg_send![event, characters];
         if characters == nil {
@@ -137,14 +137,14 @@ pub fn get_event_char(event: ObjcId) -> Option<char> {
         }
         let chars = nsstring_to_string(characters);
 
-        if chars.len() == 0 {
+        if chars.is_empty() {
             return None;
         }
         Some(chars.chars().next().unwrap())
     }
 }
 
-pub fn get_event_key_modifier(event: ObjcId) -> KeyMods {
+pub unsafe fn get_event_key_modifier(event: ObjcId) -> KeyMods {
     let flags: u64 = unsafe { msg_send![event, modifierFlags] };
     KeyMods {
         shift: flags & NSEventModifierFlags::NSShiftKeyMask as u64 != 0,
@@ -154,7 +154,7 @@ pub fn get_event_key_modifier(event: ObjcId) -> KeyMods {
     }
 }
 
-pub fn get_event_keycode(event: ObjcId) -> Option<KeyCode> {
+pub unsafe fn get_event_keycode(event: ObjcId) -> Option<KeyCode> {
     let scan_code: std::os::raw::c_ushort = unsafe { msg_send![event, keyCode] };
 
     Some(match scan_code {
@@ -402,7 +402,7 @@ pub fn keycode_to_menu_key(keycode: KeyCode, shift: bool) -> &'static str {
     }
 }
 
-pub unsafe fn superclass<'a>(this: &'a Object) -> &'a Class {
+pub unsafe fn superclass(this: &Object) -> &Class {
     let superclass: ObjcId = msg_send![this, superclass];
     &*(superclass as *const _)
 }
