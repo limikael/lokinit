@@ -24,16 +24,19 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
+
       - name: Install packages (Linux)
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
           sudo apt-get -yq --no-install-suggests --no-install-recommends install ${{ matrix.packages }}
+
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
           target: ${{ matrix.config.target }}
           override: true
+
       - name: Workaround MinGW issue # https://github.com/rust-lang/rust/issues/47048
         if: runner.os == 'Linux' && matrix.config.target == 'x86_64-pc-windows-gnu'
         run: |
@@ -41,6 +44,7 @@ jobs:
           sudo cp /usr/x86_64-w64-mingw32/lib/crt2.o  ~/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/lib/rustlib/x86_64-pc-windows-gnu/lib/crt2.o
           echo "[target.x86_64-pc-windows-gnu]" >> ~/.cargo/config
           echo "linker = \"/usr/bin/x86_64-w64-mingw32-gcc\"" >> ~/.cargo/config
+
       - name: Setup aarch64
         if: matrix.config.target == 'aarch64-unknown-linux-gnu'
         run: |
@@ -48,9 +52,16 @@ jobs:
           echo "[target.aarch64-unknown-linux-gnu]" >> ~/.cargo/config
           echo "linker = \"aarch64-linux-gnu-gcc\"" >> ~/.cargo/config
 
-      - uses: actions-rs/cargo@v1
+      - name: Cargo Build
+        uses: actions-rs/cargo@v1
         with:
           command: build
+          args: --all-targets --target=${{ matrix.config.target }}
+
+      - name: Cargo Clippy
+        uses: actions-rs/cargo@v1
+        with:
+          command: clippy
           args: --all-targets --target=${{ matrix.config.target }}
 
   android:
