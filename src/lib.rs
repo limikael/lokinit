@@ -1,3 +1,6 @@
+#![allow(clippy::missing_safety_doc)]
+// TODO: add safety docs everywhere?
+
 pub mod conf;
 mod event;
 pub mod fs;
