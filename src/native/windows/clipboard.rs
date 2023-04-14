@@ -45,7 +45,7 @@ unsafe fn get_raw_clipboard() -> Option<Vec<u16>> {
     if data_ptr.is_null() {
         return None;
     }
-    let data_size = GlobalSize(clipboard_data) as usize;
+    let data_size = GlobalSize(clipboard_data);
 
     let slice = std::slice::from_raw_parts(data_ptr, data_size);
     let len = slice.iter().position(|b| *b == 0).unwrap_or(data_size);
