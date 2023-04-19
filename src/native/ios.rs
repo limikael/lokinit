@@ -141,50 +141,42 @@ pub fn define_glk_or_mtk_view(superclass: &Class) -> *const Class {
         }
     }
     extern "C" fn touches_began(this: &Object, _: Sel, _: ObjcId, event: ObjcId) {
-        unsafe {
-            let payload = get_window_payload(this);
+        let payload = get_window_payload(this);
 
-            if let Some((ref mut event_handler, ref mut skia_ctx)) = &mut payload.event_handler {
-                on_touch(this, event, |id, x, y| {
-                    event_handler.touch_event(skia_ctx, TouchPhase::Started, id, x as _, y as _);
-                });
-            }
+        if let Some((ref mut event_handler, ref mut skia_ctx)) = &mut payload.event_handler {
+            on_touch(this, event, |id, x, y| {
+                event_handler.touch_event(skia_ctx, TouchPhase::Started, id, x as _, y as _);
+            });
         }
     }
 
     extern "C" fn touches_moved(this: &Object, _: Sel, _: ObjcId, event: ObjcId) {
-        unsafe {
-            let payload = get_window_payload(this);
+        let payload = get_window_payload(this);
 
-            if let Some((ref mut event_handler, ref mut skia_ctx)) = &mut payload.event_handler {
-                on_touch(this, event, |id, x, y| {
-                    event_handler.touch_event(skia_ctx, TouchPhase::Moved, id, x as _, y as _);
-                });
-            }
+        if let Some((ref mut event_handler, ref mut skia_ctx)) = &mut payload.event_handler {
+            on_touch(this, event, |id, x, y| {
+                event_handler.touch_event(skia_ctx, TouchPhase::Moved, id, x as _, y as _);
+            });
         }
     }
 
     extern "C" fn touches_ended(this: &Object, _: Sel, _: ObjcId, event: ObjcId) {
-        unsafe {
-            let payload = get_window_payload(this);
+        let payload = get_window_payload(this);
 
-            if let Some((ref mut event_handler, ref mut skia_ctx)) = &mut payload.event_handler {
-                on_touch(this, event, |id, x, y| {
-                    event_handler.touch_event(skia_ctx, TouchPhase::Ended, id, x as _, y as _);
-                });
-            }
+        if let Some((ref mut event_handler, ref mut skia_ctx)) = &mut payload.event_handler {
+            on_touch(this, event, |id, x, y| {
+                event_handler.touch_event(skia_ctx, TouchPhase::Ended, id, x as _, y as _);
+            });
         }
     }
 
     extern "C" fn touches_cancelled(this: &Object, _: Sel, _: ObjcId, event: ObjcId) {
-        unsafe {
-            let payload = get_window_payload(this);
+        let payload = get_window_payload(this);
 
-            if let Some((ref mut event_handler, ref mut skia_ctx)) = &mut payload.event_handler {
-                on_touch(this, event, |id, x, y| {
-                    event_handler.touch_event(skia_ctx, TouchPhase::Cancelled, id, x as _, y as _);
-                });
-            }
+        if let Some((ref mut event_handler, ref mut skia_ctx)) = &mut payload.event_handler {
+            on_touch(this, event, |id, x, y| {
+                event_handler.touch_event(skia_ctx, TouchPhase::Cancelled, id, x as _, y as _);
+            });
         }
     }
 
