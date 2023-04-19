@@ -101,7 +101,6 @@ mod tl_display {
 
 struct WindowPayload {
     event_handler: Option<(Box<dyn EventHandler>, SkiaContext)>,
-    gles2: bool,
     f: Option<Box<dyn 'static + FnOnce() -> Box<dyn EventHandler>>>,
 }
 
@@ -356,8 +355,6 @@ struct View {
     view: ObjcId,
     view_dlg: ObjcId,
     view_ctrl: ObjcId,
-    // this view failed to create gles3 context, but succeeded with gles2
-    gles2: bool,
 }
 
 unsafe fn create_opengl_view(screen_rect: NSRect, sample_count: i32, high_dpi: bool) -> View {
@@ -369,10 +366,10 @@ unsafe fn create_opengl_view(screen_rect: NSRect, sample_count: i32, high_dpi: b
 
     let eagl_context_obj: ObjcId = msg_send![class!(EAGLContext), alloc];
     let mut eagl_context_obj: ObjcId = msg_send![eagl_context_obj, initWithAPI: 3];
-    let mut gles2 = false;
+
     if eagl_context_obj.is_null() {
+        // OpenGL ES 2
         eagl_context_obj = msg_send![eagl_context_obj, initWithAPI: 2];
-        gles2 = true;
     }
 
     msg_send_![
@@ -409,7 +406,6 @@ unsafe fn create_opengl_view(screen_rect: NSRect, sample_count: i32, high_dpi: b
         view: glk_view_obj,
         view_dlg: glk_view_dlg_obj,
         view_ctrl: view_ctrl_obj,
-        gles2,
     }
 }
 
@@ -435,8 +431,6 @@ unsafe fn create_metal_view(screen_rect: NSRect, sample_count: i32, high_dpi: bo
         view: mtk_view_obj,
         view_dlg: mtk_view_dlg_obj,
         view_ctrl: view_ctrl_obj,
-
-        gles2: false,
     }
 }
 
@@ -493,7 +487,6 @@ pub fn define_app_delegate() -> *const Class {
             let payload = Box::new(WindowPayload {
                 f: Some(Box::new(f)),
                 event_handler: None,
-                gles2: view.gles2,
             });
             let payload_ptr = Box::into_raw(payload) as *mut std::ffi::c_void;
 
