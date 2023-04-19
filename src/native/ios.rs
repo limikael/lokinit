@@ -549,9 +549,11 @@ pub fn load_file<F: Fn(crate::fs::Response) + 'static>(path: &str, on_loaded: F)
     }
 }
 
+pub type LazyEventHandler = Box<dyn FnOnce() -> Box<dyn EventHandler>>;
+
 // this is the way to pass argument to UiApplicationMain
 // this static will be used exactly once, to .take() the "run" arguments
-static mut RUN_ARGS: Option<(Box<dyn FnOnce() -> Box<dyn EventHandler>>, Conf)> = None;
+static mut RUN_ARGS: Option<(LazyEventHandler, Conf)> = None;
 
 pub unsafe fn run<F>(conf: Conf, f: F)
 where
