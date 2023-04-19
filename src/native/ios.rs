@@ -104,6 +104,9 @@ struct WindowPayload {
     f: Option<Box<dyn 'static + FnOnce() -> Box<dyn EventHandler>>>,
 }
 
+// TODO: this is probably very bad to do this, but it worked beforehand.
+// Until a better solution is found, we allow the clippy lint for CI.
+#[allow(clippy::mut_from_ref)]
 fn get_window_payload(this: &Object) -> &mut WindowPayload {
     unsafe {
         let ptr: *mut c_void = *this.get_ivar("display_ptr");
