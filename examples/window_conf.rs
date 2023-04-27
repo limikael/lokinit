@@ -1,8 +1,8 @@
 #![allow(clippy::unusual_byte_groupings)]
 
-use miniquad::skia::SkiaContext;
-use miniquad::window::set_fullscreen;
-use miniquad::*;
+use lokinit::skia::SkiaContext;
+use lokinit::window::set_fullscreen;
+use lokinit::*;
 
 struct Stage {
     fullscreen: bool,
@@ -26,7 +26,7 @@ impl EventHandler for Stage {
 }
 
 fn main() {
-    miniquad::start(
+    lokinit::start(
         conf::Conf {
             window_title: "Lokinit".to_string(),
             window_width: 1024,

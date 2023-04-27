@@ -1,15 +1,13 @@
 [package]
-name = "miniquad"
+name = "lokinit"
 version = "0.4.0-alpha.0"
-authors = ["not-fl3 <not.fl3@gmail.com>"]
+authors = ["The Loki Authors", "not-fl3 <not.fl3@gmail.com>"]
 edition = "2018"
 license = "MIT/Apache-2.0"
-homepage = "https://github.com/not-fl3/miniquad"
-repository = "https://github.com/not-fl3/miniquad"
-description = """
-Cross-platform window context and rendering library.
-"""
-readme="README.md"
+homepage = "https://github.com/loki-chat/lokinit"
+repository = "https://github.com/loki-chat/lokinit"
+description = "Fork of miniquad, focused on windowing."
+readme = "README.md"
 keywords = ["graphics", "3D", "opengl", "gamedev", "windowing"]
 categories = ["rendering::graphics-api"]
 
@@ -24,7 +22,17 @@ libc = "0.2"
 
 [target.'cfg(windows)'.dependencies]
 skia-safe = { version = "0.60.0", features = ["gl"] }
-winapi = { version = "0.3", features = ["wingdi", "winuser", "libloaderapi", "windef", "shellscalingapi", "errhandlingapi", "windowsx", "winbase", "hidusage"] }
+winapi = { version = "0.3", features = [
+    "wingdi",
+    "winuser",
+    "libloaderapi",
+    "windef",
+    "shellscalingapi",
+    "errhandlingapi",
+    "windowsx",
+    "winbase",
+    "hidusage",
+] }
 
 [target.'cfg(target_os = "android")'.dependencies]
 skia-safe = { version = "0.60.0", features = ["gl"] }
@@ -38,7 +46,7 @@ skia-safe = { version = "0.60.0", features = ["gl"] }
 objc = "0.2"
 
 [dev-dependencies]
-glam = {version = "0.14", features = ["scalar-math"] }
+glam = { version = "0.14", features = ["scalar-math"] }
 quad-rand = "0.1"
 
 [[example]]
@@ -47,7 +55,11 @@ name = "skia"
 [package.metadata.android]
 # rust-skia does not support cross-compilation to Android on ARMv7.
 # ARMv7 is a 32-bit ARM architecture though, so it probably doesn't matter for our use-case.
-build_targets = [ "aarch64-linux-android", "i686-linux-android", "x86_64-linux-android" ]
+build_targets = [
+    "aarch64-linux-android",
+    "i686-linux-android",
+    "x86_64-linux-android",
+]
 
 [package.metadata.android.activity_attributes]
 "android:exported" = "true"

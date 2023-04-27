@@ -1,5 +1,5 @@
-use miniquad::skia::SkiaContext;
-use miniquad::*;
+use lokinit::skia::SkiaContext;
+use lokinit::*;
 
 struct Stage {}
 
@@ -35,5 +35,5 @@ impl EventHandler for Stage {
 }
 
 fn main() {
-    miniquad::start(conf::Conf::default(), || Box::new(Stage {}));
+    lokinit::start(conf::Conf::default(), || Box::new(Stage {}));
 }
