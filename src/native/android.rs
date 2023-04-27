@@ -26,7 +26,7 @@ pub unsafe extern "C" fn JNI_OnLoad(
 }
 
 extern "C" {
-    fn quad_main();
+    fn loki_main();
 }
 
 /// Short recap on how lokinit on Android works
@@ -550,18 +550,18 @@ unsafe fn create_native_window(surface: ndk_sys::jobject) -> *mut ndk_sys::ANati
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn Java_quad_1native_QuadNative_activityOnCreate(
+pub unsafe extern "C" fn Java_loki_1native_LokiNative_activityOnCreate(
     _: *mut ndk_sys::JNIEnv,
     _: ndk_sys::jobject,
     activity: ndk_sys::jobject,
 ) {
     let env = attach_jni_env();
     ACTIVITY = (**env).NewGlobalRef.unwrap()(env, activity);
-    quad_main();
+    loki_main();
 }
 
 #[no_mangle]
-unsafe extern "C" fn Java_quad_1native_QuadNative_activityOnResume(
+unsafe extern "C" fn Java_loki_1native_LokiNative_activityOnResume(
     _: *mut ndk_sys::JNIEnv,
     _: ndk_sys::jobject,
 ) {
@@ -569,7 +569,7 @@ unsafe extern "C" fn Java_quad_1native_QuadNative_activityOnResume(
 }
 
 #[no_mangle]
-unsafe extern "C" fn Java_quad_1native_QuadNative_activityOnPause(
+unsafe extern "C" fn Java_loki_1native_LokiNative_activityOnPause(
     _: *mut ndk_sys::JNIEnv,
     _: ndk_sys::jobject,
 ) {
@@ -577,7 +577,7 @@ unsafe extern "C" fn Java_quad_1native_QuadNative_activityOnPause(
 }
 
 #[no_mangle]
-unsafe extern "C" fn Java_quad_1native_QuadNative_activityOnDestroy(
+unsafe extern "C" fn Java_loki_1native_LokiNative_activityOnDestroy(
     _: *mut ndk_sys::JNIEnv,
     _: ndk_sys::jobject,
 ) {
@@ -585,7 +585,7 @@ unsafe extern "C" fn Java_quad_1native_QuadNative_activityOnDestroy(
 }
 
 #[no_mangle]
-extern "C" fn Java_quad_1native_QuadNative_surfaceOnSurfaceCreated(
+extern "C" fn Java_loki_1native_LokiNative_surfaceOnSurfaceCreated(
     _: *mut ndk_sys::JNIEnv,
     _: ndk_sys::jobject,
     surface: ndk_sys::jobject,
@@ -595,7 +595,7 @@ extern "C" fn Java_quad_1native_QuadNative_surfaceOnSurfaceCreated(
 }
 
 #[no_mangle]
-extern "C" fn Java_quad_1native_QuadNative_surfaceOnSurfaceDestroyed(
+extern "C" fn Java_loki_1native_LokiNative_surfaceOnSurfaceDestroyed(
     _: *mut ndk_sys::JNIEnv,
     _: ndk_sys::jobject,
 ) {
@@ -603,7 +603,7 @@ extern "C" fn Java_quad_1native_QuadNative_surfaceOnSurfaceDestroyed(
 }
 
 #[no_mangle]
-extern "C" fn Java_quad_1native_QuadNative_surfaceOnSurfaceChanged(
+extern "C" fn Java_loki_1native_LokiNative_surfaceOnSurfaceChanged(
     _: *mut ndk_sys::JNIEnv,
     _: ndk_sys::jobject,
     surface: ndk_sys::jobject,
@@ -620,7 +620,7 @@ extern "C" fn Java_quad_1native_QuadNative_surfaceOnSurfaceChanged(
 }
 
 #[no_mangle]
-extern "C" fn Java_quad_1native_QuadNative_surfaceOnTouch(
+extern "C" fn Java_loki_1native_LokiNative_surfaceOnTouch(
     _: *mut ndk_sys::JNIEnv,
     _: ndk_sys::jobject,
     touch_id: ndk_sys::jint,
@@ -645,7 +645,7 @@ extern "C" fn Java_quad_1native_QuadNative_surfaceOnTouch(
 }
 
 #[no_mangle]
-extern "C" fn Java_quad_1native_QuadNative_surfaceOnKeyDown(
+extern "C" fn Java_loki_1native_LokiNative_surfaceOnKeyDown(
     _: *mut ndk_sys::JNIEnv,
     _: ndk_sys::jobject,
     keycode: ndk_sys::jint,
@@ -656,7 +656,7 @@ extern "C" fn Java_quad_1native_QuadNative_surfaceOnKeyDown(
 }
 
 #[no_mangle]
-extern "C" fn Java_quad_1native_QuadNative_surfaceOnKeyUp(
+extern "C" fn Java_loki_1native_LokiNative_surfaceOnKeyUp(
     _: *mut ndk_sys::JNIEnv,
     _: ndk_sys::jobject,
     keycode: ndk_sys::jint,
@@ -667,7 +667,7 @@ extern "C" fn Java_quad_1native_QuadNative_surfaceOnKeyUp(
 }
 
 #[no_mangle]
-extern "C" fn Java_quad_1native_QuadNative_surfaceOnCharacter(
+extern "C" fn Java_loki_1native_LokiNative_surfaceOnCharacter(
     _: *mut ndk_sys::JNIEnv,
     _: ndk_sys::jobject,
     character: ndk_sys::jint,

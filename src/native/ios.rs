@@ -116,7 +116,7 @@ fn get_window_payload(this: &Object) -> &mut WindowPayload {
 
 pub fn define_glk_or_mtk_view(superclass: &Class) -> *const Class {
     // Superclass: GLKView (Subclass of UIView)
-    let mut decl = ClassDecl::new("QuadView", superclass).unwrap();
+    let mut decl = ClassDecl::new("LokiView", superclass).unwrap();
 
     fn on_touch(this: &Object, event: ObjcId, mut callback: impl FnMut(u64, f32, f32)) {
         unsafe {
@@ -233,7 +233,7 @@ unsafe fn get_proc_address(name: *const u8) -> Option<unsafe extern "C" fn()> {
 }
 
 pub fn define_glk_or_mtk_view_dlg(superclass: &Class) -> *const Class {
-    let mut decl = ClassDecl::new("QuadViewDlg", superclass).unwrap();
+    let mut decl = ClassDecl::new("LokiViewDlg", superclass).unwrap();
 
     extern "C" fn draw_in_rect(this: &Object, _: Sel, _: ObjcId, _: ObjcId) {
         let payload = get_window_payload(this);

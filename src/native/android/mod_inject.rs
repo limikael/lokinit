@@ -10,13 +10,13 @@
 // But we really need to be able to make lokinit's functions visible to java.
 //
 // Contents of this file is being copied right to the "main.rs" of the main crate
-// by cargo quad. And therefore functions like JAVA_CLASS_PATH_QuadSurface_nativeOnSurfaceCreated are well visible for the JNI
+// by cargo loki. And therefore functions like JAVA_CLASS_PATH_LokiSurface_nativeOnSurfaceCreated are well visible for the JNI
 // and they just forward the call to the real implementation inside lokinit
 // Note that because it is being injected - we might not have neither lokinit
 // or ndk_sys as a crate dependency.. so we cant use anything from them.
 
 
 #[no_mangle]
-pub extern "C" fn quad_main() {
+pub extern "C" fn loki_main() {
     let _ = super::main();
 }

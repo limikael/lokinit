@@ -21,7 +21,7 @@ import android.content.Context;
 import android.content.Intent;
 
 
-import quad_native.QuadNative;
+import loki_native.LokiNative;
 
 // note: //% is a special lokinit's pre-processor for plugins
 // when there are no plugins - //% whatever will be replaced to an empty string
@@ -29,7 +29,7 @@ import quad_native.QuadNative;
 
 //% IMPORTS
 
-class QuadSurface
+class LokiSurface
     extends
         SurfaceView
     implements
@@ -37,7 +37,7 @@ class QuadSurface
         View.OnKeyListener,
         SurfaceHolder.Callback {
 
-    public QuadSurface(Context context){
+    public LokiSurface(Context context){
         super(context);
         getHolder().addCallback(this);
 
@@ -52,14 +52,14 @@ class QuadSurface
     public void surfaceCreated(SurfaceHolder holder) {
         Log.i("SAPP", "surfaceCreated");
         Surface surface = holder.getSurface();
-        QuadNative.surfaceOnSurfaceCreated(surface);
+        LokiNative.surfaceOnSurfaceCreated(surface);
     }
 
     @Override
     public void surfaceDestroyed(SurfaceHolder holder) {
         Log.i("SAPP", "surfaceDestroyed");
         Surface surface = holder.getSurface();
-        QuadNative.surfaceOnSurfaceDestroyed(surface);
+        LokiNative.surfaceOnSurfaceDestroyed(surface);
     }
 
     @Override
@@ -69,7 +69,7 @@ class QuadSurface
                                int height) {
         Log.i("SAPP", "surfaceChanged");
         Surface surface = holder.getSurface();
-        QuadNative.surfaceOnSurfaceChanged(surface, width, height);
+        LokiNative.surfaceOnSurfaceChanged(surface, width, height);
 
     }
 
@@ -84,7 +84,7 @@ class QuadSurface
                 final int id = event.getPointerId(i);
                 final float x = event.getX(i);
                 final float y = event.getY(i);
-                QuadNative.surfaceOnTouch(id, 0, x, y);
+                LokiNative.surfaceOnTouch(id, 0, x, y);
             }
             break;
         }
@@ -92,14 +92,14 @@ class QuadSurface
             final int id = event.getPointerId(0);
             final float x = event.getX(0);
             final float y = event.getY(0);
-            QuadNative.surfaceOnTouch(id, 1, x, y);
+            LokiNative.surfaceOnTouch(id, 1, x, y);
             break;
         }
         case MotionEvent.ACTION_DOWN: {
             final int id = event.getPointerId(0);
             final float x = event.getX(0);
             final float y = event.getY(0);
-            QuadNative.surfaceOnTouch(id, 2, x, y);
+            LokiNative.surfaceOnTouch(id, 2, x, y);
             break;
         }
         case MotionEvent.ACTION_POINTER_UP: {
@@ -107,7 +107,7 @@ class QuadSurface
             final int id = event.getPointerId(pointerIndex);
             final float x = event.getX(pointerIndex);
             final float y = event.getY(pointerIndex);
-            QuadNative.surfaceOnTouch(id, 1, x, y);
+            LokiNative.surfaceOnTouch(id, 1, x, y);
             break;
         }
         case MotionEvent.ACTION_POINTER_DOWN: {
@@ -115,7 +115,7 @@ class QuadSurface
             final int id = event.getPointerId(pointerIndex);
             final float x = event.getX(pointerIndex);
             final float y = event.getY(pointerIndex);
-            QuadNative.surfaceOnTouch(id, 2, x, y);
+            LokiNative.surfaceOnTouch(id, 2, x, y);
             break;
         }
         case MotionEvent.ACTION_CANCEL: {
@@ -123,7 +123,7 @@ class QuadSurface
                 final int id = event.getPointerId(i);
                 final float x = event.getX(i);
                 final float y = event.getY(i);
-                QuadNative.surfaceOnTouch(id, 3, x, y);
+                LokiNative.surfaceOnTouch(id, 3, x, y);
             }
             break;
         }
@@ -141,11 +141,11 @@ class QuadSurface
     @Override
     public boolean onKey(View v, int keyCode, KeyEvent event) {
         if (event.getAction() == KeyEvent.ACTION_DOWN && keyCode != 0) {
-            QuadNative.surfaceOnKeyDown(keyCode);
+            LokiNative.surfaceOnKeyDown(keyCode);
         }
 
         if (event.getAction() == KeyEvent.ACTION_UP && keyCode != 0) {
-            QuadNative.surfaceOnKeyUp(keyCode);
+            LokiNative.surfaceOnKeyUp(keyCode);
         }
         
         if (event.getAction() == KeyEvent.ACTION_UP || event.getAction() == KeyEvent.ACTION_MULTIPLE) {
@@ -158,7 +158,7 @@ class QuadSurface
             }
 
             if (character != 0) {
-                QuadNative.surfaceOnCharacter(character);
+                LokiNative.surfaceOnCharacter(character);
             }
         }
 
@@ -173,7 +173,7 @@ class QuadSurface
 public class MainActivity extends Activity {
     //% MAIN_ACTIVITY_BODY
 
-    private QuadSurface view;
+    private LokiSurface view;
 
     static {
         System.loadLibrary("LIBRARY_NAME");
@@ -185,10 +185,10 @@ public class MainActivity extends Activity {
 
         this.requestWindowFeature(Window.FEATURE_NO_TITLE);
 
-        view = new QuadSurface(this);
+        view = new LokiSurface(this);
         setContentView(view);
 
-        QuadNative.activityOnCreate(this);
+        LokiNative.activityOnCreate(this);
 
         //% MAIN_ACTIVITY_ON_CREATE
     }
@@ -196,7 +196,7 @@ public class MainActivity extends Activity {
     @Override
     protected void onResume() {
         super.onResume();
-        QuadNative.activityOnResume();
+        LokiNative.activityOnResume();
 
         //% MAIN_ACTIVITY_ON_RESUME
     }
@@ -219,13 +219,13 @@ public class MainActivity extends Activity {
     protected void onDestroy() {
         super.onDestroy();
 
-        QuadNative.activityOnDestroy();
+        LokiNative.activityOnDestroy();
     }
 
     @Override
     protected void onPause() {
         super.onPause();
-        QuadNative.activityOnPause();
+        LokiNative.activityOnPause();
 
         //% MAIN_ACTIVITY_ON_PAUSE
     }
