@@ -787,8 +787,8 @@ pub enum NSDragOperation {
 
 unsafe impl Encode for NSDragOperation {
     fn encode() -> Encoding {
-        let encoding = format!("Q");
-        unsafe { Encoding::from_str(&encoding) }
+        let encoding = "Q";
+        unsafe { Encoding::from_str(encoding) }
     }
 }
 
@@ -1158,7 +1158,7 @@ impl OSError {
         })
     }
 
-    pub fn from_nserror(ns_error: ObjcId) -> Result<(), Self> {
+    pub unsafe fn from_nserror(ns_error: ObjcId) -> Result<(), Self> {
         if ns_error != nil {
             let code: i32 = unsafe { msg_send![ns_error, code] };
             Self::from(code)

@@ -325,7 +325,7 @@ impl X11Display {
                 serial: 0,
                 send_event: true as _,
                 message_type: wm_state,
-                window: window,
+                window,
                 display: self.display,
                 format: 32,
                 data: ClientMessageData {
@@ -614,7 +614,8 @@ where
         std::ptr::null_mut(),
     );
 
-    if egl_surface == /* EGL_NO_SURFACE  */ std::ptr::null_mut() {
+    if egl_surface.is_null() {
+        // EGL_NO_SURFACE
         panic!("surface creation failed");
     }
     if (egl_lib.eglMakeCurrent.unwrap())(egl_display, egl_surface, egl_surface, context) == 0 {
@@ -744,19 +745,19 @@ where
 
         match conf.platform.linux_x11_gl {
             crate::conf::LinuxX11Gl::GLXOnly => {
-                glx_main_loop(display, &conf, f, x11_screen).ok().unwrap();
+                glx_main_loop(display, conf, f, x11_screen).ok().unwrap();
             }
             crate::conf::LinuxX11Gl::EGLOnly => {
-                egl_main_loop(display, &conf, f).ok().unwrap();
+                egl_main_loop(display, conf, f).ok().unwrap();
             }
             crate::conf::LinuxX11Gl::GLXWithEGLFallback => {
-                if let Err(display) = glx_main_loop(display, &conf, f, x11_screen) {
-                    egl_main_loop(display, &conf, f).ok().unwrap();
+                if let Err(display) = glx_main_loop(display, conf, f, x11_screen) {
+                    egl_main_loop(display, conf, f).ok().unwrap();
                 }
             }
             crate::conf::LinuxX11Gl::EGLWithGLXFallback => {
-                if let Err(display) = egl_main_loop(display, &conf, f) {
-                    glx_main_loop(display, &conf, f, x11_screen).ok().unwrap();
+                if let Err(display) = egl_main_loop(display, conf, f) {
+                    glx_main_loop(display, conf, f, x11_screen).ok().unwrap();
                 }
             }
         }

@@ -14,9 +14,7 @@ pub enum Error {
 
 impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        match *self {
-            _ => write!(f, "Error: {:?}", self),
-        }
+        write!(f, "Error: {:?}", self)
     }
 }
 
@@ -51,7 +49,7 @@ fn load_file_android<F: Fn(Response)>(path: &str, on_loaded: F) {
 
         unsafe { native::android::load_asset(filename.as_ptr(), &mut data as _) };
 
-        if data.content.is_null() == false {
+        if !data.content.is_null() {
             let slice =
                 unsafe { std::slice::from_raw_parts(data.content, data.content_length as _) };
             let response = slice.iter().map(|c| *c as _).collect::<Vec<_>>();

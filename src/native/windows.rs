@@ -15,7 +15,7 @@ use winapi::{
         hidusage::{HID_USAGE_GENERIC_MOUSE, HID_USAGE_PAGE_GENERIC},
         minwindef::{DWORD, HIWORD, LOWORD, LPARAM, LRESULT, UINT, WPARAM},
         ntdef::NULL,
-        windef::{HCURSOR, HDC, HICON, HWND, POINT, RECT},
+        windef::{HCURSOR, HDC, HWND, POINT, RECT},
         windowsx::{GET_X_LPARAM, GET_Y_LPARAM},
     },
     um::{
@@ -68,7 +68,7 @@ mod tl_display {
     fn with_native_display(f: &mut dyn FnMut(&mut dyn crate::NativeDisplay)) {
         DISPLAY.with(|d| {
             let mut d = d.borrow_mut();
-            let mut d = d.as_mut().unwrap();
+            let d = d.as_mut().unwrap();
             f(&mut *d);
         })
     }
@@ -76,7 +76,7 @@ mod tl_display {
     pub(super) fn with<T>(mut f: impl FnMut(&mut WindowsDisplay) -> T) -> T {
         DISPLAY.with(|d| {
             let mut d = d.borrow_mut();
-            let mut d = d.as_mut().unwrap();
+            let d = d.as_mut().unwrap();
             f(&mut *d)
         })
     }
@@ -195,10 +195,7 @@ impl crate::native::NativeDisplay for WindowsDisplay {
         let win_style: DWORD = get_win_style(self.fullscreen, self.window_resizable);
 
         unsafe {
-            #[cfg(target_arch = "x86_64")]
             SetWindowLongPtrA(self.wnd, GWLP_USERDATA, win_style as _);
-            #[cfg(target_arch = "i686")]
-            SetWindowLong(self.wnd, GWLP_USERDATA, win_style as _);
 
             if self.fullscreen {
                 SetWindowPos(
@@ -310,17 +307,7 @@ unsafe extern "system" fn win32_wndproc(
     wparam: WPARAM,
     lparam: LPARAM,
 ) -> LRESULT {
-    let mut display_ptr: isize;
-
-    #[cfg(target_arch = "x86_64")]
-    {
-        display_ptr = GetWindowLongPtrA(hwnd, GWLP_USERDATA)
-    }
-
-    #[cfg(target_arch = "i686")]
-    {
-        display_ptr = GetWindowLong(hwnd, GWLP_USERDATA)
-    }
+    let display_ptr = GetWindowLongPtrA(hwnd, GWLP_USERDATA);
 
     if display_ptr == 0 {
         return DefWindowProcW(hwnd, umsg, wparam, lparam);
@@ -494,7 +481,7 @@ unsafe extern "system" fn win32_wndproc(
                 dy = dy / 65535.0 * height;
             }
 
-            event_handler.raw_mouse_motion(context, dx as f32, dy as f32);
+            event_handler.raw_mouse_motion(context, dx, dy);
         }
 
         WM_MOUSELEAVE => {
@@ -517,7 +504,7 @@ unsafe extern "system" fn win32_wndproc(
             let repeat = !!(lparam & 0x40000000) != 0;
             let mods = key_mods();
             if chr > 0 {
-                if let Some(chr) = std::char::from_u32(chr as u32) {
+                if let Some(chr) = std::char::from_u32(chr) {
                     event_handler.char_event(context, chr, mods, repeat);
                 }
             }
@@ -697,7 +684,7 @@ unsafe fn create_window(
         GetModuleHandleW(NULL as _), // hInstance
         NULL as _,                   // lparam
     );
-    assert!(hwnd.is_null() == false);
+    assert!(!hwnd.is_null());
 
     let mut rawinputdevice: RAWINPUTDEVICE = std::mem::zeroed();
     rawinputdevice.usUsagePage = HID_USAGE_PAGE_GENERIC;
@@ -715,7 +702,7 @@ unsafe fn create_window(
 
     ShowWindow(hwnd, SW_SHOW);
     let dc = GetDC(hwnd);
-    assert!(dc.is_null() == false);
+    assert!(!dc.is_null());
 
     (hwnd, dc)
 }
@@ -740,7 +727,7 @@ unsafe fn create_msg_window() -> (HWND, HDC) {
         NULL,
     );
     assert!(
-        msg_hwnd.is_null() == false,
+        !msg_hwnd.is_null(),
         "Win32: failed to create helper window!"
     );
     ShowWindow(msg_hwnd, SW_HIDE);
@@ -751,7 +738,7 @@ unsafe fn create_msg_window() -> (HWND, HDC) {
     }
     let msg_dc = GetDC(msg_hwnd);
     assert!(
-        msg_dc.is_null() == false,
+        !msg_dc.is_null(),
         "Win32: failed to obtain helper window DC!"
     );
 
@@ -794,7 +781,7 @@ impl WindowsDisplay {
             self.display_data.screen_width = 1;
             self.display_data.screen_height = 1;
         }
-        return false;
+        false
     }
 
     unsafe fn init_dpi(&mut self, high_dpi: bool) {
@@ -924,10 +911,7 @@ where
         };
         // well, technically this is UB and we are suppose to use *mut WindowPayload instead of &mut WindowPayload forever from now on...
         // so if there going to be some weird bugs someday in the future - check this out!
-        #[cfg(target_arch = "x86_64")]
         SetWindowLongPtrA(wnd, GWLP_USERDATA, &mut p as *mut _ as isize);
-        #[cfg(target_arch = "i686")]
-        SetWindowLong(wnd, GWLP_USERDATA, &mut p as *mut _ as isize);
 
         let mut done = false;
         while !(done || tl_display::with(|d| d.display_data.quit_ordered)) {
