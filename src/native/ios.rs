@@ -80,7 +80,7 @@ mod tl_display {
     fn with_native_display(f: &mut dyn FnMut(&mut dyn crate::NativeDisplay)) {
         DISPLAY.with(|d| {
             let mut d = d.borrow_mut();
-            let mut d = d.as_mut().unwrap();
+            let d = d.as_mut().unwrap();
             f(&mut *d);
         })
     }
@@ -88,7 +88,7 @@ mod tl_display {
     pub(super) fn with<T>(mut f: impl FnMut(&mut IosDisplay) -> T) -> T {
         DISPLAY.with(|d| {
             let mut d = d.borrow_mut();
-            let mut d = d.as_mut().unwrap();
+            let d = d.as_mut().unwrap();
             f(&mut *d)
         })
     }
@@ -101,10 +101,12 @@ mod tl_display {
 
 struct WindowPayload {
     event_handler: Option<(Box<dyn EventHandler>, SkiaContext)>,
-    gles2: bool,
     f: Option<Box<dyn 'static + FnOnce() -> Box<dyn EventHandler>>>,
 }
 
+// TODO: this is probably very bad to do this, but it worked beforehand.
+// Until a better solution is found, we allow the clippy lint for CI.
+#[allow(clippy::mut_from_ref)]
 fn get_window_payload(this: &Object) -> &mut WindowPayload {
     unsafe {
         let ptr: *mut c_void = *this.get_ivar("display_ptr");
@@ -139,50 +141,42 @@ pub fn define_glk_or_mtk_view(superclass: &Class) -> *const Class {
         }
     }
     extern "C" fn touches_began(this: &Object, _: Sel, _: ObjcId, event: ObjcId) {
-        unsafe {
-            let payload = get_window_payload(this);
+        let payload = get_window_payload(this);
 
-            if let Some((ref mut event_handler, ref mut skia_ctx)) = &mut payload.event_handler {
-                on_touch(this, event, |id, x, y| {
-                    event_handler.touch_event(skia_ctx, TouchPhase::Started, id, x as _, y as _);
-                });
-            }
+        if let Some((ref mut event_handler, ref mut skia_ctx)) = &mut payload.event_handler {
+            on_touch(this, event, |id, x, y| {
+                event_handler.touch_event(skia_ctx, TouchPhase::Started, id, x as _, y as _);
+            });
         }
     }
 
     extern "C" fn touches_moved(this: &Object, _: Sel, _: ObjcId, event: ObjcId) {
-        unsafe {
-            let payload = get_window_payload(this);
+        let payload = get_window_payload(this);
 
-            if let Some((ref mut event_handler, ref mut skia_ctx)) = &mut payload.event_handler {
-                on_touch(this, event, |id, x, y| {
-                    event_handler.touch_event(skia_ctx, TouchPhase::Moved, id, x as _, y as _);
-                });
-            }
+        if let Some((ref mut event_handler, ref mut skia_ctx)) = &mut payload.event_handler {
+            on_touch(this, event, |id, x, y| {
+                event_handler.touch_event(skia_ctx, TouchPhase::Moved, id, x as _, y as _);
+            });
         }
     }
 
     extern "C" fn touches_ended(this: &Object, _: Sel, _: ObjcId, event: ObjcId) {
-        unsafe {
-            let payload = get_window_payload(this);
+        let payload = get_window_payload(this);
 
-            if let Some((ref mut event_handler, ref mut skia_ctx)) = &mut payload.event_handler {
-                on_touch(this, event, |id, x, y| {
-                    event_handler.touch_event(skia_ctx, TouchPhase::Ended, id, x as _, y as _);
-                });
-            }
+        if let Some((ref mut event_handler, ref mut skia_ctx)) = &mut payload.event_handler {
+            on_touch(this, event, |id, x, y| {
+                event_handler.touch_event(skia_ctx, TouchPhase::Ended, id, x as _, y as _);
+            });
         }
     }
 
     extern "C" fn touches_cancelled(this: &Object, _: Sel, _: ObjcId, event: ObjcId) {
-        unsafe {
-            let payload = get_window_payload(this);
+        let payload = get_window_payload(this);
 
-            if let Some((ref mut event_handler, ref mut skia_ctx)) = &mut payload.event_handler {
-                on_touch(this, event, |id, x, y| {
-                    event_handler.touch_event(skia_ctx, TouchPhase::Cancelled, id, x as _, y as _);
-                });
-            }
+        if let Some((ref mut event_handler, ref mut skia_ctx)) = &mut payload.event_handler {
+            on_touch(this, event, |id, x, y| {
+                event_handler.touch_event(skia_ctx, TouchPhase::Cancelled, id, x as _, y as _);
+            });
         }
     }
 
@@ -220,18 +214,18 @@ unsafe fn get_proc_address(name: *const u8) -> Option<unsafe extern "C" fn()> {
             pub fn dlsym(handle: *mut c_void, symbol: *const c_char) -> *mut c_void;
         }
     }
-    static mut opengl: *mut std::ffi::c_void = std::ptr::null_mut();
+    static mut OPENGL: *mut std::ffi::c_void = std::ptr::null_mut();
 
-    if opengl.is_null() {
-        opengl = libc::dlopen(
+    if OPENGL.is_null() {
+        OPENGL = libc::dlopen(
             b"/System/Library/Frameworks/OpenGLES.framework/OpenGLES\0".as_ptr() as _,
             libc::RTLD_LAZY,
         );
     }
 
-    assert!(!opengl.is_null());
+    assert!(!OPENGL.is_null());
 
-    let symbol = libc::dlsym(opengl, name as _);
+    let symbol = libc::dlsym(OPENGL, name as _);
     if symbol.is_null() {
         return None;
     }
@@ -356,11 +350,9 @@ struct View {
     view: ObjcId,
     view_dlg: ObjcId,
     view_ctrl: ObjcId,
-    // this view failed to create gles3 context, but succeeded with gles2
-    gles2: bool,
 }
 
-unsafe fn create_opengl_view(screen_rect: NSRect, sample_count: i32, high_dpi: bool) -> View {
+unsafe fn create_opengl_view(screen_rect: NSRect, _sample_count: i32, high_dpi: bool) -> View {
     let glk_view_obj: ObjcId = msg_send![define_glk_or_mtk_view(class!(GLKView)), alloc];
     let glk_view_obj: ObjcId = msg_send![glk_view_obj, initWithFrame: screen_rect];
 
@@ -369,10 +361,10 @@ unsafe fn create_opengl_view(screen_rect: NSRect, sample_count: i32, high_dpi: b
 
     let eagl_context_obj: ObjcId = msg_send![class!(EAGLContext), alloc];
     let mut eagl_context_obj: ObjcId = msg_send![eagl_context_obj, initWithAPI: 3];
-    let mut gles2 = false;
+
     if eagl_context_obj.is_null() {
+        // OpenGL ES 2
         eagl_context_obj = msg_send![eagl_context_obj, initWithAPI: 2];
-        gles2 = true;
     }
 
     msg_send_![
@@ -409,11 +401,10 @@ unsafe fn create_opengl_view(screen_rect: NSRect, sample_count: i32, high_dpi: b
         view: glk_view_obj,
         view_dlg: glk_view_dlg_obj,
         view_ctrl: view_ctrl_obj,
-        gles2,
     }
 }
 
-unsafe fn create_metal_view(screen_rect: NSRect, sample_count: i32, high_dpi: bool) -> View {
+unsafe fn create_metal_view(screen_rect: NSRect, _sample_count: i32, _high_dpi: bool) -> View {
     let mtk_view_obj: ObjcId = msg_send![define_glk_or_mtk_view(class!(MTKView)), alloc];
     let mtk_view_obj: ObjcId = msg_send![mtk_view_obj, initWithFrame: screen_rect];
 
@@ -435,8 +426,6 @@ unsafe fn create_metal_view(screen_rect: NSRect, sample_count: i32, high_dpi: bo
         view: mtk_view_obj,
         view_dlg: mtk_view_dlg_obj,
         view_ctrl: view_ctrl_obj,
-
-        gles2: false,
     }
 }
 
@@ -493,7 +482,6 @@ pub fn define_app_delegate() -> *const Class {
             let payload = Box::new(WindowPayload {
                 f: Some(Box::new(f)),
                 event_handler: None,
-                gles2: view.gles2,
             });
             let payload_ptr = Box::into_raw(payload) as *mut std::ffi::c_void;
 
@@ -522,7 +510,7 @@ pub fn define_app_delegate() -> *const Class {
 
 pub fn log(message: &str) {
     let nsstring = apple_util::str_to_nsstring(message);
-    let _: () = unsafe { frameworks::NSLog(nsstring) };
+    unsafe { frameworks::NSLog(nsstring) };
 }
 
 pub fn load_file<F: Fn(crate::fs::Response) + 'static>(path: &str, on_loaded: F) {
@@ -532,11 +520,10 @@ pub fn load_file<F: Fn(crate::fs::Response) + 'static>(path: &str, on_loaded: F)
     let extension = path.extension().unwrap_or_default().to_str().unwrap();
 
     unsafe {
-        let nsstring = apple_util::str_to_nsstring(&format!(
+        log(&format!(
             "loading: {} {}",
             path_without_extension, extension
         ));
-        let _: () = frameworks::NSLog(nsstring);
 
         let main_bundle: ObjcId = msg_send![class!(NSBundle), mainBundle];
         let resource = apple_util::str_to_nsstring(path_without_extension);
@@ -562,9 +549,11 @@ pub fn load_file<F: Fn(crate::fs::Response) + 'static>(path: &str, on_loaded: F)
     }
 }
 
+pub type LazyEventHandler = Box<dyn FnOnce() -> Box<dyn EventHandler>>;
+
 // this is the way to pass argument to UiApplicationMain
 // this static will be used exactly once, to .take() the "run" arguments
-static mut RUN_ARGS: Option<(Box<dyn FnOnce() -> Box<dyn EventHandler>>, Conf)> = None;
+static mut RUN_ARGS: Option<(LazyEventHandler, Conf)> = None;
 
 pub unsafe fn run<F>(conf: Conf, f: F)
 where
@@ -573,8 +562,7 @@ where
     RUN_ARGS = Some((Box::new(f), conf));
 
     std::panic::set_hook(Box::new(|info| {
-        let nsstring = apple_util::str_to_nsstring(&format!("{:?}", info));
-        let _: () = frameworks::NSLog(nsstring);
+        log(&format!("{:?}", info));
     }));
 
     let argc = 1;
