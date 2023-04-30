@@ -1,7 +1,7 @@
 #![allow(clippy::unusual_byte_groupings)]
 
-use miniquad::skia::SkiaContext;
-use miniquad::*;
+use lokinit::skia::SkiaContext;
+use lokinit::*;
 use skia_safe::canvas::{SaveLayerFlags, SaveLayerRec};
 use skia_safe::{image_filters, scalar, Canvas, Color, Paint, RRect, Rect};
 
@@ -175,7 +175,7 @@ pub fn simple_rectangle(
 }
 
 fn main() {
-    miniquad::start(
+    lokinit::start(
         conf::Conf {
             high_dpi: true,
             ..Default::default()

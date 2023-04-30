@@ -424,7 +424,7 @@ unsafe extern "system" fn win32_wndproc(
                 d.mouse_y = GET_Y_LPARAM(lparam) as f32 * d.mouse_scale;
             });
 
-            // mouse enter was not handled by miniquad anyway
+            // mouse enter was not handled by lokinit anyway
             // if !_sapp.win32_mouse_tracked {
             //     _sapp.win32_mouse_tracked = true;
 
@@ -485,7 +485,7 @@ unsafe extern "system" fn win32_wndproc(
         }
 
         WM_MOUSELEAVE => {
-            // mouse leave was not handled by miniquad anyway
+            // mouse leave was not handled by lokinit anyway
             // _sapp.win32_mouse_tracked = false;
             // _sapp_win32_mouse_event(
             //     sapp_event_type_SAPP_EVENTTYPE_MOUSE_LEAVE,
@@ -709,7 +709,7 @@ unsafe fn create_window(
 
 unsafe fn create_msg_window() -> (HWND, HDC) {
     let class_name = "MINIQUADAPP\0".encode_utf16().collect::<Vec<u16>>();
-    let window_name = "miniquad message window\0"
+    let window_name = "lokinit message window\0"
         .encode_utf16()
         .collect::<Vec<u16>>();
     let msg_hwnd = CreateWindowExW(

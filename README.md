@@ -1,47 +1,67 @@
-# Miniquad
+# Lokinit
 
-[![Github Actions](https://github.com/not-fl3/miniquad/workflows/Cross-compile/badge.svg)](https://github.com/not-fl3/miniquad/actions?query=workflow%3A)
-[![Docs](https://docs.rs/miniquad/badge.svg?version=0.3.13)](https://docs.rs/miniquad/0.3.13/miniquad/index.html)
-[![Crates.io version](https://img.shields.io/crates/v/miniquad.svg)](https://crates.io/crates/miniquad)
-[![Discord chat](https://img.shields.io/discord/710177966440579103.svg?label=discord%20chat)](https://discord.gg/WfEp6ut)
-[![Matrix](https://img.shields.io/matrix/quad-general:matrix.org?label=matrix%20chat)](https://matrix.to/#/#quad-general:matrix.org)
+> A fork of miniquad focused on windowing.
 
-Miniquad is a manifestation of a dream in a world where we do not need a deep dependencies tree and thousands lines of code to draw things with a computer.
+[![Discord](https://img.shields.io/discord/1092477105079595038?color=7289DA&label=%20&logo=discord&logoColor=white)](https://discord.gg/D5pzrmyqz3)
 
-Miniquad aims to provide a graphics abstraction that works the same way on any platform with a GPU, being as light weight as possible while covering as many machines as possible. 
+Miniquad is an amazing project. It has next to zero dependencies - only system ones like `libc` on Linux, `objc` on MacOS and `winapi` on Windows. The total amount of dependencies across all platforms and features is a crushing **7**:
+
+```
+$ cargo tree --target all
+miniquad v0.3.15 (/home/speykious/repos/github.com/not-fl3/miniquad)
+├── libc v0.2.139
+├── ndk-sys v0.2.2
+├── objc v0.2.7
+│   └── malloc_buf v0.0.6
+│       └── libc v0.2.139
+└── winapi v0.3.9
+    ├── winapi-i686-pc-windows-gnu v0.4.0
+    └── winapi-x86_64-pc-windows-gnu v0.4.0
+```
+
+Cargo may be an amazing package manager, but making projects with hundreds of dependencies nested in a deep tree has some disadvantages:
+- it clogs up compile times by orders of magnitude. Upon a `cargo clean`, it's very easy to see middle-sized projects take several minutes to build. Miniquad on the other hand takes *less than 5 seconds* in the same situation.
+- we get restricted to what the dependencies can let us do with their goal. The more dependencies we use, the more we'll have to rely on other developers to fix problems affect us.
+- quite often, the code of such dependencies is much more complex than it needs to be for our use-case, probably as a result of trying to be broad enough for lots of other use-cases.
+
+On the other hand, rolling with our own code may also have its own disadvantages:
+- the burden is placed on the developer to maintain code that they have to write themselves.
+- there is no guarantee that the code written will turn out to be a better solution than one that is battle-tested or simply more mature.
+
+In short, there definitely is a balance to be had when it comes to dependencies. But I believe that balance should be _heavily_ shifted to a place where 100 dependencies is extravagant or niche rather than the norm.
+
+When it comes to native window management, the task at hand is to interact with the relevant system libraries on each operating system to spawn a window on the screen, and manage all the various properties that a window might need: resizing, fullscreen, having a title, binding to a graphics API so we can draw stuff to the screen. We shouldn't need any other dependencies than system ones, and miniquad has shown that.
+
+However, Miniquad is *not* a windowing project, it is a cross-platform graphics rendering project that leverages a lot of custom-made code for windowing. The one and most advanced Rust project when it comes to windowing is [Winit](https://crates.io/crates/winit). It seems to work extremely well so far and has [a lot of features under its belt](https://github.com/rust-windowing/winit/blob/master/FEATURES.md#windowing-1) for each OS they support. The problem is that it pulls out 60 dependencies for this in a deep nested tree of dependencies, just on one OS. It takes several minutes to compile after a `cargo clean`. To make matters worse, if you need OpenGL, you need to add `glutin`, `glutin-winit` and `raw-window-handle` as hard dependencies too. I am convinced that we can do better than this, and have something that weighs almost nothing in terms of dependencies and compile times. That way, projects using Lokinit won't have to pull in 60 dependencies out of the box.
+
+# Status of Lokinit
+
+As Lokinit was forked first and foremost to help in the development of [Loki](https://github.com/loki-chat), our chat app written from scratch entirely in Rust, it is currently very mildly modified from Miniquad 0.4.
+
+It also has a hard dependency on `skia-safe` for fast 2D drawing, as the quickest way to get Skia working on all 5 platforms was to code it directly into the fork. In the future though, the plan is to remove this hard dependency entirely so that lokinit can be solely a windowing library that may also provide various graphics API initialization endpoints.
 
 ## Supported Platforms
 
-* Windows, OpenGL 3;
-* Linux, OpenGL 3, GLES 2, GLES 3;
-* macOS, OpenGL 3;
-* iOS, GLES 2, GLES 3;
-* WASM, WebGL 1 - tested on iOS Safari, Firefox, Chrome;
-* Android, GLES 2, GLES 3.
+We intend to support the 5 major native platforms:
 
-## Not Supported, but Desirable Platforms
+- Windows
+- Linux
+- Android
+- MacOS
+- iOS
 
-* Metal. For both macOS and iOS metal rendering backend next to opengl one is highly desirable. But I just dont have any macOS capable hardware to start working on it :/
-
-## Examples
-
-![Imgur](https://i.imgur.com/TRI50rk.gif)
-
-[examples/quad.rs](https://github.com/not-fl3/miniquad/blob/master/examples/quad.rs): [web demo](https://not-fl3.github.io/miniquad-samples/quad.html)<br/>
-[examples/offscreen.rs](https://github.com/not-fl3/miniquad/blob/master/examples/offscreen.rs): [web demo](https://not-fl3.github.io/miniquad-samples/offscreen.html)<br/>
-
-[PonasKovas/miniquad-mandelbrot](https://github.com/PonasKovas/miniquad-mandelbrot): [web demo](https://ponaskovas.github.io/miniquad-mandelbrot-wasm-demo/)
+We don't intend to support Web as a target. The web has vastly different needs and constraints than native systems when it comes to windowing, so if there ever is a need for it, it should probably be in a different crate with a completely different API.
 
 # Building examples
 
 ## Linux
 
 ```bash
-cargo run --example quad
+cargo run --example skia
 ```
 
 On NixOS Linux you can use [`shell.nix`](shell.nix) to start a development
-environment where Miniquad can be built and run.
+environment where Lokinit can be built and run.
 
 ## Windows
 
@@ -51,73 +71,23 @@ rustup target add x86_64-pc-windows-msvc
 # or
 rustup target add x86_64-pc-windows-gnu
 
-cargo run --example quad
-```
-
-## WASM
-
-```bash
-rustup target add wasm32-unknown-unknown
-cargo build --example quad --target wasm32-unknown-unknown
-```
-
-And then use the following .html to load .wasm:
-
-<details><summary>index.html</summary>
-
-```html
-<html lang="en">
-
-<head>
-    <meta charset="utf-8">
-    <title>TITLE</title>
-    <style>
-        html,
-        body,
-        canvas {
-            margin: 0px;
-            padding: 0px;
-            width: 100%;
-            height: 100%;
-            overflow: hidden;
-            position: absolute;
-            background: black;
-            z-index: 0;
-        }
-    </style>
-</head>
-
-<body>
-    <canvas id="glcanvas" tabindex='1'></canvas>
-    <!-- Minified and statically hosted version of https://github.com/not-fl3/miniquad/blob/master/native/sapp-wasm/js/gl.js -->
-    <script src="https://not-fl3.github.io/miniquad-samples/gl.js"></script>
-    <script>load("quad.wasm");</script> <!-- Your compiled wasm file -->
-</body>
-
-</html>
-```
-</details>
-
-One of the ways to server static .wasm and .html:
-
-```
-cargo install basic-http-server
-basic-http-server .
+cargo run --example skia
 ```
 
 ## Android
 
-Recommended way to build for android is using Docker.<br/>
-miniquad uses slightly modifed version of `cargo-apk`
+The recommended way to build for Android is using Docker.
+
+Lokinit uses a fork of `cargo-quad-apk` called `cargo-loki-apk`, a slightly modifed version of `cargo-apk` specifically for Lokinit projects.
 
 ```
-docker run --rm -v $(pwd)":/root/src" -w /root/src notfl3/cargo-apk cargo quad-apk build --example quad
+docker run --rm -v $(pwd)":/root/src" -w /root/src loki-chat/cargo-loki-apk cargo loki-apk build --example skia
 ```
 
-APK file will be in `target/android-artifacts/(debug|release)/apk`
+The APK file will be in `target/android-artifacts/(debug|release)/apk`.
 
-With "log-impl" enabled all log calls will be forwarded to adb console.
-No code modifications for Android required, everything should just works.
+With the `log-impl` feature enabled, all log calls will be forwarded to the `adb` console.
+No code modification for Android is required, everything should just work.
 
 ## iOS
 
@@ -152,9 +122,11 @@ xcrun simctl install booted MyGame.app/
 xcrun simctl launch booted com.mygame
 ```
 
-For details and instructions on provisioning for real iphone, check [https://macroquad.rs/articles/ios/](https://macroquad.rs/articles/ios/)
+For details and instructions on provisioning for a real iphone, check [https://macroquad.rs/articles/ios/](https://macroquad.rs/articles/ios/).
 
 ## Cross Compilation
+
+> **Note:** cross-compilation is now harder due to the restrictions that Skia has put in terms of environment setup. This should all go away once Lokinit doesn't depend on Skia anymore.
 
 ```bash
 
@@ -164,30 +136,14 @@ rustup target add x86_64-pc-windows-gnu
 cargo run --example quad --target x86_64-pc-windows-gnu
 ```
 
-# Goals
+# Goals of Lokinit
 
-* Fast compilation time. Right now it is ~5s from "cargo clean" for both desktop and web.
+- **Fast compilation times.** Lokinit should compile under 5 seconds just like Miniquad.
+- **Minimal dependencies.** We shouldn't need more than system library dependencies to do windowing properly. For such a task, 10 dependencies total is already considered too much.
+- **Cross-platform.** It should support all 5 major native platforms as flawlessly as possible, potentially more OSes in the future like Redox.
+- **Focus on windowing.** Our feature goals are pretty much the exact same as Winit, to spawn a window on all native platforms. People should be able to easily use Lokinit as a dependency and bind whatever graphics API they want: OpenGL, Vulkan, DirectX, Metal, etc. without needing to fork it and modify its internals for it to work.
 
-* Cross platform. Amount of platform specific user code required should be kept as little as possible.
+# License
 
-* Low-end devices support.
-
-* Hackability. Working on your own game, highly probable some hardware incompability will be found. Working around that kind of bugs should be easy, implementation details should not be hidden under layers of abstraction.
-
-* Forkability. Each platform implementation is, usually, just one pure Rust file. And this file is very copy-paste friendly - it doesnt use any miniquad specific abstractions. It is very easy to just copy some part of miniquad's platform implementation and use it standalone.
-
-# Non-goals
-
-* Ultimate type safety. Library should be entirely safe in Rust's definition of safe - no UB or memory unsafety. But correct GPU state is not type guaranteed. Feel free to provide safety abstraction in the user code then!
-
-* High-end API, like Vulkan/DirectX 12. Take a look on [gfx-rs](https://github.com/gfx-rs/gfx) or [vulkano](https://github.com/vulkano-rs/vulkano) instead!
-
-# Platinum sponsors
-
-Miniquad is supported by:
-
-<p>
-  <a href="https://embark-studios.com">
-    <img src="https://www.embark.dev/img/logo_black.png" width="201px">
-  </a>
-</p>
+Lokinit is dual-licensed under APACHE and MIT.
+See [LICENSE-APACHE](LICENSE-APACHE) and [LICENSE-MIT](LICENSE-MIT) for details.

@@ -59,10 +59,10 @@ jobs:
   android:
     name: Android
     runs-on: ubuntu-latest
-    container: notfl3/cargo-apk
+    container: speykious/cargo-loki-apk
     steps:
       - uses: actions/checkout@v2
       
-      - name: cargo quad-apk
+      - name: cargo loki-apk
         run: |
-          cargo quad-apk build 
+          cargo loki-apk build 

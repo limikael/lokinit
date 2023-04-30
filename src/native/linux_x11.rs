@@ -26,7 +26,7 @@ use std::{
 
 pub struct Dummy;
 
-// part of the X11 display that lives in thread local and is accessible from miniquad::window
+// part of the X11 display that lives in thread local and is accessible from lokinit::window
 pub struct X11Display {
     libx11: LibX11,
     display: *mut Display,
