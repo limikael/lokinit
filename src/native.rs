@@ -1,3 +1,5 @@
+use std::ffi::c_void;
+
 /// Most backends happened to have exactly the same fields in their *Display struct
 /// Maybe something like this may in some public API some day?
 /// (important data from this struct is available through function like Context::screen_size)
@@ -55,6 +57,8 @@ pub trait NativeDisplay: std::any::Any {
     fn apple_view(&mut self) -> Option<crate::native::apple::frameworks::ObjcId>;
 
     fn as_any(&mut self) -> &mut dyn std::any::Any;
+
+    fn get_gl_proc_addr(&self, procname: &str)->*const c_void;
 }
 
 pub mod module;

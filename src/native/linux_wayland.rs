@@ -9,6 +9,7 @@ mod shm;
 
 use libwayland_client::*;
 use libwayland_egl::*;
+use std::ffi::c_void;
 
 use crate::{
     event::EventHandler,
@@ -74,6 +75,10 @@ impl crate::native::NativeDisplay for WaylandDisplay {
     fn clipboard_set(&mut self, _data: &str) {}
     fn as_any(&mut self) -> &mut dyn std::any::Any {
         self
+    }
+
+    fn get_gl_proc_addr(&self, _procname: &str)->*const c_void {
+        panic!("gl proc addr unimplemented for wayland");
     }
 }
 pub mod tl_display {
@@ -320,9 +325,9 @@ unsafe extern "C" fn xdg_toplevel_handle_configure(
                 decorations.resize(&mut display.client, width, height);
             }
         });
-        if let Some((ref mut event_handler, ref mut skia_ctx)) = payload.ctx {
+        if let Some((ref mut event_handler, ref mut _skia_ctx)) = payload.ctx {
             // TODO: resize event needs a skia context
-            event_handler.resize_event(skia_ctx, width as _, height as _);
+            event_handler.resize_event(/*skia_ctx,*/ width as _, height as _);
         }
     }
 }
@@ -545,9 +550,9 @@ where
         while tl_display::with(|d| !d.closed) {
             (client.wl_display_dispatch_pending)(wdisplay);
 
-            if let Some((ref mut event_handler, ref mut skia_ctx)) = payload.ctx {
-                event_handler.update(skia_ctx);
-                event_handler.draw(skia_ctx);
+            if let Some((ref mut event_handler, ref mut _skia_ctx)) = payload.ctx {
+                event_handler.update(/*skia_ctx*/);
+                event_handler.draw(/*skia_ctx*/);
             }
 
             (libegl.eglSwapBuffers.unwrap())(egl_display, egl_surface);

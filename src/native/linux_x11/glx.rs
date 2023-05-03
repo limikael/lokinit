@@ -1,5 +1,7 @@
 #![allow(dead_code, non_snake_case, clippy::upper_case_acronyms)]
 
+use std::rc::Rc;
+
 use super::libx11::*;
 
 use crate::native::module;
@@ -203,7 +205,7 @@ pub struct GlxExtensions {
 }
 
 pub struct Glx {
-    pub libgl: LibGlx,
+    pub libgl: Rc<LibGlx>,
     multisample: bool,
     extensions: GlxExtensions,
     fbconfig: GLXFBConfig,
@@ -292,7 +294,7 @@ impl Glx {
         };
 
         Some(Glx {
-            libgl,
+            libgl: libgl.into(),
             multisample,
             visual,
             depth,

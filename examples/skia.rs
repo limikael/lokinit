@@ -26,14 +26,14 @@ const N_POINTERS: usize = 11;
 
 struct Stage {
     pointers: [Pointer; N_POINTERS],
+    skia_ctx: SkiaContext
 }
 
 impl EventHandler for Stage {
-    fn update(&mut self, _skia_ctx: &mut SkiaContext) {}
+    fn update(&mut self) {}
 
     fn mouse_button_down_event(
         &mut self,
-        _skia_ctx: &mut SkiaContext,
         _button: MouseButton,
         x: f32,
         y: f32,
@@ -45,7 +45,6 @@ impl EventHandler for Stage {
 
     fn mouse_button_up_event(
         &mut self,
-        _skia_ctx: &mut SkiaContext,
         _button: MouseButton,
         _x: f32,
         _y: f32,
@@ -53,14 +52,13 @@ impl EventHandler for Stage {
         self.pointers[10].on = false;
     }
 
-    fn mouse_motion_event(&mut self, _skia_ctx: &mut SkiaContext, x: f32, y: f32) {
+    fn mouse_motion_event(&mut self, x: f32, y: f32) {
         self.pointers[10].x = x;
         self.pointers[10].y = y;
     }
 
     fn touch_event(
         &mut self,
-        _skia_ctx: &mut SkiaContext,
         phase: TouchPhase,
         id: u64,
         x: f32,
@@ -78,12 +76,12 @@ impl EventHandler for Stage {
         self.pointers[id].y = y;
     }
 
-    fn resize_event(&mut self, skia_ctx: &mut SkiaContext, width: f32, height: f32) {
-        skia_ctx.recreate_surface(width as i32, height as i32);
+    fn resize_event(&mut self, width: f32, height: f32) {
+        self.skia_ctx.recreate_surface(width as i32, height as i32);
     }
 
-    fn draw(&mut self, skia_ctx: &mut SkiaContext) {
-        let canvas = &mut skia_ctx.surface.canvas();
+    fn draw(&mut self) {
+        let canvas = &mut self.skia_ctx.surface.canvas();
         canvas.clear(Color::from(0xff_161a1d));
 
         // simple rectangle
@@ -96,7 +94,59 @@ impl EventHandler for Stage {
             }
         }
 
-        skia_ctx.dctx.flush(None);
+        self.skia_ctx.dctx.flush(None);
+    }
+}
+
+impl Stage {
+    pub fn new()->Self {
+        //println!("addr: {:?}",window::get_gl_proc_addr("glDrawArrays"));
+
+        let skia_ctx = {
+            // Skia initialization on OpenGL
+            use skia_safe::gpu::{gl::FramebufferInfo, DirectContext};
+            use std::convert::TryInto;
+
+            let interface = skia_safe::gpu::gl::Interface::new_load_with(window::get_gl_proc_addr)
+            .expect("Failed to create Skia <-> OpenGL interface");
+
+            let dctx = DirectContext::new_gl(Some(interface), None)
+                .expect("Failed to create Skia's direct context");
+
+            let fb_info = {
+                let mut fboid: gl::GLint = 0;
+                unsafe { gl::glGetIntegerv(gl::GL_FRAMEBUFFER_BINDING, &mut fboid) };
+
+                FramebufferInfo {
+                    fboid: fboid.try_into().unwrap(),
+                    format: gl::GL_RGBA8,
+                }
+            };
+
+            // TODO! expose a way to get the window size
+            let (w,h)=(800,600);
+
+            SkiaContext::new(dctx, fb_info, w, h)
+        };
+
+        Self {
+            skia_ctx,
+            pointers: [
+                // pointers for fingers
+                Pointer::colored(0xff3737),
+                Pointer::colored(0xffaf37),
+                Pointer::colored(0xd7ff37),
+                Pointer::colored(0x5fff37),
+                Pointer::colored(0x37ff87),
+                Pointer::colored(0x37ffff),
+                Pointer::colored(0x3787ff),
+                Pointer::colored(0x5f37ff),
+                Pointer::colored(0xd737ff),
+                Pointer::colored(0xff37af),
+                // pointer for mouse
+                Pointer::colored(0xbbddff),
+            ],
+        }        
     }
 }
 
@@ -181,23 +231,7 @@ fn main() {
             ..Default::default()
         },
         || {
-            Box::new(Stage {
-                pointers: [
-                    // pointers for fingers
-                    Pointer::colored(0xff3737),
-                    Pointer::colored(0xffaf37),
-                    Pointer::colored(0xd7ff37),
-                    Pointer::colored(0x5fff37),
-                    Pointer::colored(0x37ff87),
-                    Pointer::colored(0x37ffff),
-                    Pointer::colored(0x3787ff),
-                    Pointer::colored(0x5f37ff),
-                    Pointer::colored(0xd737ff),
-                    Pointer::colored(0xff37af),
-                    // pointer for mouse
-                    Pointer::colored(0xbbddff),
-                ],
-            })
+            Box::new(Stage::new())
         },
     );
 }
