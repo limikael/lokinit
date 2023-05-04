@@ -40,7 +40,6 @@ impl EventHandler for Stage {
 
 fn main() {
     lokinit::start(conf::Conf::default(), || {
-        gl::load_gl_funcs(window::get_gl_proc_addr);
         Box::new(Stage {})
     });
 }

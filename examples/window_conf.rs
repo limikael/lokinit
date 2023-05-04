@@ -42,7 +42,6 @@ fn main() {
             ..Default::default()
         },
         || {
-            gl::load_gl_funcs(window::get_gl_proc_addr);
             Box::new(Stage { fullscreen: false })
         },
     );
