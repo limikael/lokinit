@@ -1,14 +1,13 @@
-use lokinit::skia::SkiaContext;
 use lokinit::*;
 
 struct Stage {}
 
 impl EventHandler for Stage {
-    fn update(&mut self, _skia_ctx: &mut SkiaContext) {}
+    fn update(&mut self) {}
 
-    fn draw(&mut self, _skia_ctx: &mut SkiaContext) {}
+    fn draw(&mut self) {}
 
-    fn char_event(&mut self, _skia_ctx: &mut SkiaContext, character: char, _: KeyMods, _: bool) {
+    fn char_event(&mut self, character: char, _: KeyMods, _: bool) {
         match character {
             'z' => window::show_mouse(false),
             'x' => window::show_mouse(true),

@@ -15,7 +15,6 @@ use crate::{
     event::EventHandler,
     gl,
     native::{egl, NativeDisplayData},
-    //skia::SkiaContext,
     CursorIcon,
 };
 
@@ -50,13 +49,6 @@ pub struct X11MainLoopData {
 }
 
 impl X11MainLoopData {
-    /*fn with_skia(self, skia_ctx: SkiaContext) -> ExtendedX11MainLoopData {
-        ExtendedX11MainLoopData {
-            data: self,
-            skia_ctx,
-        }
-    }*/
-
     fn without_skia(self)->ExtendedX11MainLoopData {
         ExtendedX11MainLoopData {
             data: self
@@ -66,7 +58,6 @@ impl X11MainLoopData {
 
 pub struct ExtendedX11MainLoopData {
     data: X11MainLoopData,
-//    skia_ctx: SkiaContext,
 }
 
 impl Deref for ExtendedX11MainLoopData {
@@ -381,17 +372,17 @@ impl ExtendedX11MainLoopData {
                 let chr = keycodes::keysym_to_unicode(keysym);
                 if chr > 0 {
                     if let Some(chr) = std::char::from_u32(chr as u32) {
-                        event_handler.char_event(/*&mut self.skia_ctx,*/ chr, mods, repeat);
+                        event_handler.char_event(chr, mods, repeat);
                     }
                 }
-                event_handler.key_down_event(/*&mut self.skia_ctx,*/ key, mods, repeat);
+                event_handler.key_down_event(key, mods, repeat);
             }
             3 => {
                 let keycode = (*event).xkey.keycode;
                 let key = keycodes::translate_key(&mut inner.libx11, inner.display, keycode as _);
                 self.repeated_keycodes[(keycode & 0xff) as usize] = false;
                 let mods = keycodes::translate_mod((*event).xkey.state as libc::c_int);
-                event_handler.key_up_event(/*&mut self.skia_ctx,*/ key, mods);
+                event_handler.key_up_event(key, mods);
             }
             4 => {
                 let btn = keycodes::translate_mouse_button((*event).xbutton.button as _);
@@ -399,20 +390,20 @@ impl ExtendedX11MainLoopData {
                 let y = (*event).xmotion.y as libc::c_float;
 
                 if btn != crate::event::MouseButton::Unknown {
-                    event_handler.mouse_button_down_event(/*&mut self.skia_ctx,*/ btn, x, y);
+                    event_handler.mouse_button_down_event(btn, x, y);
                 } else {
                     match (*event).xbutton.button {
                         4 => {
-                            event_handler.mouse_wheel_event(/*&mut self.skia_ctx,*/ 0.0, 1.0);
+                            event_handler.mouse_wheel_event(0.0, 1.0);
                         }
                         5 => {
-                            event_handler.mouse_wheel_event(/*&mut self.skia_ctx,*/ 0.0, -1.0);
+                            event_handler.mouse_wheel_event(0.0, -1.0);
                         }
                         6 => {
-                            event_handler.mouse_wheel_event(/*&mut self.skia_ctx,*/ 1.0, 0.0);
+                            event_handler.mouse_wheel_event(1.0, 0.0);
                         }
                         7 => {
-                            event_handler.mouse_wheel_event(/*&mut self.skia_ctx,*/ -1.0, 0.0);
+                            event_handler.mouse_wheel_event(-1.0, 0.0);
                         }
                         _ => {}
                     }
@@ -424,7 +415,7 @@ impl ExtendedX11MainLoopData {
                 let y = (*event).xmotion.y as libc::c_float;
 
                 if btn != crate::event::MouseButton::Unknown {
-                    event_handler.mouse_button_up_event(/*&mut self.skia_ctx,*/ btn, x, y);
+                    event_handler.mouse_button_up_event(btn, x, y);
                 }
             }
             7 => {
@@ -436,7 +427,7 @@ impl ExtendedX11MainLoopData {
             6 => {
                 let x = (*event).xmotion.x as libc::c_float;
                 let y = (*event).xmotion.y as libc::c_float;
-                event_handler.mouse_motion_event(/*&mut self.skia_ctx,*/ x, y);
+                event_handler.mouse_motion_event(x, y);
             }
             22 => {
                 if (*event).xconfigure.width != tl_display::with(|d| d.data.screen_width)
@@ -448,7 +439,7 @@ impl ExtendedX11MainLoopData {
                         d.data.screen_width = width;
                         d.data.screen_height = height;
                     });
-                    event_handler.resize_event(/*&mut self.skia_ctx,*/ width as _, height as _);
+                    event_handler.resize_event(width as _, height as _);
                 }
             }
             33 => {
@@ -478,14 +469,14 @@ impl ExtendedX11MainLoopData {
                     let (dx, dy) = inner
                         .libxi
                         .read_cookie(&mut (*event).xcookie, inner.display);
-                    event_handler.raw_mouse_motion(/*&mut self.skia_ctx,*/ dx as f32, dy as f32);
+                    event_handler.raw_mouse_motion(dx as f32, dy as f32);
                 }
             }
             _ => {}
         };
 
         if tl_display::with(|d| d.data.quit_requested && !d.data.quit_ordered) {
-            event_handler.quit_requested_event(/*&mut self.skia_ctx*/);
+            event_handler.quit_requested_event();
             tl_display::with(|d| {
                 if d.data.quit_requested {
                     d.data.quit_ordered = true
@@ -546,7 +537,6 @@ where
         tl_display::with(|d| d.set_fullscreen(window, true));
     }
 
-//    let mut display = display.with_skia(skia_ctx);
     let mut display = display.without_skia();
     let mut event_handler = (f.take().unwrap())();
 
@@ -561,9 +551,8 @@ where
         }
 
         {
-            //let skia_ctx = &mut display.skia_ctx;
-            event_handler.update(/*skia_ctx*/);
-            event_handler.draw(/*skia_ctx*/);
+            event_handler.update();
+            event_handler.draw();
         }
 
         glx.swap_buffers(display.display, glx_window);
@@ -642,7 +631,6 @@ where
 
     (display.libx11.XFlush)(display.display);
 
-    //let mut display = display.with_skia(skia_ctx);
     let mut display = display.without_skia();
     let mut event_handler = (f.take().unwrap())();
 
@@ -656,9 +644,8 @@ where
         }
 
         {
-            //let skia_ctx = &mut display.skia_ctx;
-            event_handler.update(/*skia_ctx*/);
-            event_handler.draw(/*skia_ctx*/);
+            event_handler.update();
+            event_handler.draw();
         }
 
         (egl_lib.eglSwapBuffers.unwrap())(egl_display, egl_surface);
