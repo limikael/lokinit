@@ -231,8 +231,8 @@ impl crate::native::NativeDisplay for WindowsDisplay {
         self
     }
 
-    fn get_gl_proc_addr(&self, procname: &str) -> *const c_void {
-        unsafe { self.get_proc_address(procname).unwrap() as *const c_void }
+    fn get_gl_proc_addr(&self, procname: &str) -> Option<unsafe extern "C" fn()> {
+        unsafe { self.get_proc_address(procname) }
     }
 }
 
