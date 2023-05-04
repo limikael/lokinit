@@ -1,14 +1,12 @@
 use std::convert::TryInto;
+use std::ffi::c_void;
 
 use crate::{
     conf::Conf,
     event::{KeyMods, MouseButton},
     native::NativeDisplayData,
-    skia::SkiaContext,
     CursorIcon, EventHandler,
 };
-
-use skia_safe::gpu::{gl::FramebufferInfo, DirectContext};
 
 use winapi::{
     shared::{
@@ -232,11 +230,16 @@ impl crate::native::NativeDisplay for WindowsDisplay {
     fn as_any(&mut self) -> &mut dyn std::any::Any {
         self
     }
+
+    fn get_gl_proc_addr(&self, procname: &str)->*const c_void {
+        unsafe {
+            self.get_proc_address(procname).unwrap() as *const c_void
+        }
+    }
 }
 
 struct WindowPayload {
     event_handler: Box<dyn EventHandler>,
-    context: SkiaContext,
 }
 
 fn get_win_style(is_fullscreen: bool, is_resizable: bool) -> DWORD {
@@ -314,7 +317,7 @@ unsafe extern "system" fn win32_wndproc(
     }
     let &mut WindowPayload {
         ref mut event_handler,
-        ref mut context,
+//        ref mut context,
     } = &mut *(display_ptr as *mut WindowPayload);
 
     match umsg {
@@ -338,7 +341,7 @@ unsafe extern "system" fn win32_wndproc(
                 }
             });
             if quit_requested {
-                event_handler.quit_requested_event(context);
+                event_handler.quit_requested_event();
             }
             return 0;
         }
@@ -369,9 +372,9 @@ unsafe extern "system" fn win32_wndproc(
             if iconified != tl_display::with(|d| d.iconified) {
                 tl_display::with(|d| d.iconified = iconified);
                 if iconified {
-                    event_handler.window_minimized_event(context);
+                    event_handler.window_minimized_event();
                 } else {
-                    event_handler.window_restored_event(context);
+                    event_handler.window_restored_event();
                 }
             }
         }
@@ -385,37 +388,37 @@ unsafe extern "system" fn win32_wndproc(
         WM_LBUTTONDOWN => {
             let mouse_x = tl_display::with(|d| d.mouse_x);
             let mouse_y = tl_display::with(|d| d.mouse_y);
-            event_handler.mouse_button_down_event(context, MouseButton::Left, mouse_x, mouse_y);
+            event_handler.mouse_button_down_event(MouseButton::Left, mouse_x, mouse_y);
         }
         WM_RBUTTONDOWN => {
             let mouse_x = tl_display::with(|d| d.mouse_x);
             let mouse_y = tl_display::with(|d| d.mouse_y);
 
-            event_handler.mouse_button_down_event(context, MouseButton::Right, mouse_x, mouse_y);
+            event_handler.mouse_button_down_event(MouseButton::Right, mouse_x, mouse_y);
         }
         WM_MBUTTONDOWN => {
             let mouse_x = tl_display::with(|d| d.mouse_x);
             let mouse_y = tl_display::with(|d| d.mouse_y);
 
-            event_handler.mouse_button_down_event(context, MouseButton::Middle, mouse_x, mouse_y);
+            event_handler.mouse_button_down_event(MouseButton::Middle, mouse_x, mouse_y);
         }
         WM_LBUTTONUP => {
             let mouse_x = tl_display::with(|d| d.mouse_x);
             let mouse_y = tl_display::with(|d| d.mouse_y);
 
-            event_handler.mouse_button_up_event(context, MouseButton::Left, mouse_x, mouse_y);
+            event_handler.mouse_button_up_event(MouseButton::Left, mouse_x, mouse_y);
         }
         WM_RBUTTONUP => {
             let mouse_x = tl_display::with(|d| d.mouse_x);
             let mouse_y = tl_display::with(|d| d.mouse_y);
 
-            event_handler.mouse_button_up_event(context, MouseButton::Right, mouse_x, mouse_y);
+            event_handler.mouse_button_up_event(MouseButton::Right, mouse_x, mouse_y);
         }
         WM_MBUTTONUP => {
             let mouse_x = tl_display::with(|d| d.mouse_x);
             let mouse_y = tl_display::with(|d| d.mouse_y);
 
-            event_handler.mouse_button_up_event(context, MouseButton::Middle, mouse_x, mouse_y);
+            event_handler.mouse_button_up_event(MouseButton::Middle, mouse_x, mouse_y);
         }
 
         WM_MOUSEMOVE => {
@@ -443,7 +446,7 @@ unsafe extern "system" fn win32_wndproc(
             let mouse_x = tl_display::with(|d| d.mouse_x);
             let mouse_y = tl_display::with(|d| d.mouse_y);
 
-            event_handler.mouse_motion_event(context, mouse_x, mouse_y);
+            event_handler.mouse_motion_event(mouse_x, mouse_y);
         }
 
         WM_MOVE if tl_display::with(|d| d.cursor_grabbed) => {
@@ -481,7 +484,7 @@ unsafe extern "system" fn win32_wndproc(
                 dy = dy / 65535.0 * height;
             }
 
-            event_handler.raw_mouse_motion(context, dx, dy);
+            event_handler.raw_mouse_motion(dx, dy);
         }
 
         WM_MOUSELEAVE => {
@@ -493,11 +496,11 @@ unsafe extern "system" fn win32_wndproc(
             // );
         }
         WM_MOUSEWHEEL => {
-            event_handler.mouse_wheel_event(context, 0.0, (HIWORD(wparam as _) as i16) as f32);
+            event_handler.mouse_wheel_event(0.0, (HIWORD(wparam as _) as i16) as f32);
         }
 
         WM_MOUSEHWHEEL => {
-            event_handler.mouse_wheel_event(context, (HIWORD(wparam as _) as i16) as f32, 0.0);
+            event_handler.mouse_wheel_event((HIWORD(wparam as _) as i16) as f32, 0.0);
         }
         WM_CHAR => {
             let chr = wparam as u32;
@@ -505,7 +508,7 @@ unsafe extern "system" fn win32_wndproc(
             let mods = key_mods();
             if chr > 0 {
                 if let Some(chr) = std::char::from_u32(chr) {
-                    event_handler.char_event(context, chr, mods, repeat);
+                    event_handler.char_event(chr, mods, repeat);
                 }
             }
         }
@@ -514,13 +517,13 @@ unsafe extern "system" fn win32_wndproc(
             let keycode = keycodes::translate_keycode(keycode);
             let mods = key_mods();
             let repeat = !!(lparam & 0x40000000) != 0;
-            event_handler.key_down_event(context, keycode, mods, repeat);
+            event_handler.key_down_event(keycode, mods, repeat);
         }
         WM_KEYUP | WM_SYSKEYUP => {
             let keycode = HIWORD(lparam as _) as u32 & 0x1FF;
             let keycode = keycodes::translate_keycode(keycode);
             let mods = key_mods();
-            event_handler.key_up_event(context, keycode, mods);
+            event_handler.key_up_event(keycode, mods);
         }
 
         _ => {}
@@ -746,7 +749,7 @@ unsafe fn create_msg_window() -> (HWND, HDC) {
 }
 
 impl WindowsDisplay {
-    unsafe fn get_proc_address(&mut self, proc: &str) -> Option<unsafe extern "C" fn() -> ()> {
+    unsafe fn get_proc_address(&self, proc: &str) -> Option<unsafe extern "C" fn() -> ()> {
         let proc = std::ffi::CString::new(proc).unwrap();
         let mut proc_ptr = (self.libopengl32.wglGetProcAddress)(proc.as_ptr());
         if proc_ptr.is_null() {
@@ -868,46 +871,12 @@ where
 
         super::gl::load_gl_funcs(|proc| display.get_proc_address(proc));
 
-        let (dctx, fb_info) = {
-            let interface = skia_safe::gpu::gl::Interface::new_load_with(|proc| {
-                // Skia segfaults on Linux if we don't filter out this GLES function.
-                // On Windows it seems to work fine without it (after all it doesn't use GLES)
-                // ...but keeing it here just in case.
-                if proc == "eglGetCurrentDisplay" {
-                    return std::ptr::null();
-                }
-
-                match display.get_proc_address(proc) {
-                    Some(procaddr) => procaddr as *const std::ffi::c_void,
-                    None => std::ptr::null(),
-                }
-            })
-            .expect("Failed to create Skia <-> OpenGL interface");
-
-            let dctx = DirectContext::new_gl(Some(interface), None)
-                .expect("Failed to create Skia's direct context");
-
-            let fb_info = {
-                let mut fboid = 0;
-                crate::gl::glGetIntegerv(crate::gl::GL_FRAMEBUFFER_BINDING, &mut fboid);
-
-                FramebufferInfo {
-                    fboid: fboid.try_into().unwrap(),
-                    format: crate::gl::GL_RGBA8,
-                }
-            };
-            (dctx, fb_info)
-        };
-
-        let context = SkiaContext::new(dctx, fb_info, conf.window_width, conf.window_height);
-
         tl_display::set_display(display);
 
         let event_handler = f();
 
         let mut p = WindowPayload {
             event_handler,
-            context,
         };
         // well, technically this is UB and we are suppose to use *mut WindowPayload instead of &mut WindowPayload forever from now on...
         // so if there going to be some weird bugs someday in the future - check this out!
@@ -925,15 +894,15 @@ where
                     DispatchMessageW(&mut msg as *mut _ as _);
                 }
             }
-            p.event_handler.update(&mut p.context);
-            p.event_handler.draw(&mut p.context);
+            p.event_handler.update();
+            p.event_handler.draw();
 
             SwapBuffers(tl_display::with(|d| d.dc));
 
             if tl_display::with(|d| d.update_dimensions(wnd)) {
                 let width = tl_display::with(|d| d.display_data.screen_width as f32);
                 let height = tl_display::with(|d| d.display_data.screen_height as f32);
-                p.event_handler.resize_event(&mut p.context, width, height);
+                p.event_handler.resize_event(width, height);
             }
             tl_display::with(|d| {
                 if d.display_data.quit_requested {
