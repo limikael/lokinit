@@ -35,8 +35,8 @@ fn main() {
             window_height: 600,
             //fullscreen: true,
             platform: Platform {
-                //linux_x11_gl: lokinit::conf::LinuxX11Gl::GLXOnly,
-                linux_x11_gl: lokinit::conf::LinuxX11Gl::EGLOnly,
+                linux_x11_gl: lokinit::conf::LinuxX11Gl::GLXOnly,
+                //linux_x11_gl: lokinit::conf::LinuxX11Gl::EGLOnly,
                 ..Default::default()
             },
             ..Default::default()

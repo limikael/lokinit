@@ -1,8 +1,6 @@
 //!
 //! Spiritual successor of an X11 part of https://github.com/floooh/sokol/blob/master/sokol_app.h
 
-use std::ffi::c_void;
-
 mod clipboard;
 mod glx;
 mod keycodes;
@@ -11,18 +9,14 @@ mod libx11_ex;
 mod x_cursor;
 mod xi_input;
 
+use libx11::*;
+use std::ffi::c_void;
+use std::{collections::HashMap};
 use crate::{
     event::EventHandler,
     gl,
     native::{egl, NativeDisplayData},
     CursorIcon,
-};
-
-use libx11::*;
-
-use std::{
-    collections::HashMap,
-    ops::{Deref, DerefMut},
 };
 
 pub struct Dummy;
@@ -46,32 +40,6 @@ pub struct X11MainLoopData {
     display: *mut Display,
     root: Window,
     repeated_keycodes: [bool; 256],
-}
-
-impl X11MainLoopData {
-    fn without_skia(self)->ExtendedX11MainLoopData {
-        ExtendedX11MainLoopData {
-            data: self
-        }
-    }
-}
-
-pub struct ExtendedX11MainLoopData {
-    data: X11MainLoopData,
-}
-
-impl Deref for ExtendedX11MainLoopData {
-    type Target = X11MainLoopData;
-
-    fn deref(&self) -> &Self::Target {
-        &self.data
-    }
-}
-
-impl DerefMut for ExtendedX11MainLoopData {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.data
-    }
 }
 
 pub mod tl_display {
@@ -350,14 +318,12 @@ impl X11Display {
     }
 }
 
-impl ExtendedX11MainLoopData {
+impl X11MainLoopData {
     unsafe fn process_event(&mut self, event: &mut XEvent, event_handler: &mut dyn EventHandler) {
-        let inner = &mut self.data;
-
         match (*event).type_0 {
             2 => {
                 let keycode = (*event).xkey.keycode as libc::c_int;
-                let key = keycodes::translate_key(&mut inner.libx11, inner.display, keycode);
+                let key = keycodes::translate_key(&mut self.libx11, self.display, keycode);
                 let repeat = self.repeated_keycodes[(keycode & 0xff) as usize];
                 self.repeated_keycodes[(keycode & 0xff) as usize] = true;
                 let mods = keycodes::translate_mod((*event).xkey.state as libc::c_int);
@@ -379,7 +345,7 @@ impl ExtendedX11MainLoopData {
             }
             3 => {
                 let keycode = (*event).xkey.keycode;
-                let key = keycodes::translate_key(&mut inner.libx11, inner.display, keycode as _);
+                let key = keycodes::translate_key(&mut self.libx11, self.display, keycode as _);
                 self.repeated_keycodes[(keycode & 0xff) as usize] = false;
                 let mods = keycodes::translate_mod((*event).xkey.state as libc::c_int);
                 event_handler.key_up_event(key, mods);
@@ -455,7 +421,7 @@ impl ExtendedX11MainLoopData {
                 // // some other app is waiting for clibpoard content
                 // // need to make appropriate XSelectionEvent - response for this request
                 // // only UTF8_STRING request is actually supported
-                clipboard::respond_to_clipboard_request(&mut inner.libx11, inner.display, event);
+                clipboard::respond_to_clipboard_request(&mut self.libx11, self.display, event);
             }
             // SelectionClear
             29 => {}
@@ -463,12 +429,12 @@ impl ExtendedX11MainLoopData {
 
             // GenericEvent
             35 if Some((*event).xcookie.extension)
-                == (inner.libxi).xi_extension_opcode(&mut inner.libx11, inner.display) =>
+                == (self.libxi).xi_extension_opcode(&mut self.libx11, self.display) =>
             {
                 if (*event).xcookie.evtype == xi_input::XI_RawMotion {
-                    let (dx, dy) = inner
+                    let (dx, dy) = self
                         .libxi
-                        .read_cookie(&mut (*event).xcookie, inner.display);
+                        .read_cookie(&mut (*event).xcookie, self.display);
                     event_handler.raw_mouse_motion(dx as f32, dy as f32);
                 }
             }
@@ -537,7 +503,7 @@ where
         tl_display::with(|d| d.set_fullscreen(window, true));
     }
 
-    let mut display = display.without_skia();
+    //let mut display = display.without_skia();
     let mut event_handler = (f.take().unwrap())();
 
     while !tl_display::with(|d| d.data.quit_ordered) {
@@ -631,7 +597,7 @@ where
 
     (display.libx11.XFlush)(display.display);
 
-    let mut display = display.without_skia();
+    //let mut display = display.without_skia();
     let mut event_handler = (f.take().unwrap())();
 
     while !tl_display::with(|d| d.data.quit_ordered) {
