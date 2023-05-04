@@ -15,7 +15,6 @@ impl EventHandler for Stage {
 
 fn main() {
     start(Conf::default(), || {
-
         // Initialize functions from the gl crate.
         gl::load_with(
             |procname| match window::get_gl_proc_addr(procname) {

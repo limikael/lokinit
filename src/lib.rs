@@ -199,9 +199,6 @@ where
                     native::linux_x11::run(&conf, f);
                 }
             }
-            _ => {
-                panic!("work in progress...")
-            }
         }
     }
 

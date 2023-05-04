@@ -37,7 +37,7 @@ fn main() {
             platform: Platform {
                 //linux_x11_gl: lokinit::conf::LinuxX11Gl::GLXOnly,
                 //linux_x11_gl: lokinit::conf::LinuxX11Gl::EGLOnly,
-                linux_backend: lokinit::conf::LinuxBackend::WaylandOnly,
+                //linux_backend: lokinit::conf::LinuxBackend::WaylandOnly,
                 ..Default::default()
             },
             ..Default::default()
