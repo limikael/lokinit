@@ -546,38 +546,6 @@ where
         tl_display::with(|d| d.set_fullscreen(window, true));
     }
 
-    /*let skia_ctx = {
-        // Skia initialization on OpenGL
-        use skia_safe::gpu::{gl::FramebufferInfo, DirectContext};
-        use std::convert::TryInto;
-
-        let interface = skia_safe::gpu::gl::Interface::new_load_with(|proc| {
-            if proc == "eglGetCurrentDisplay" {
-                return std::ptr::null();
-            }
-            match glx.libgl.get_procaddr(proc) {
-                Some(procaddr) => procaddr as *const libc::c_void,
-                None => std::ptr::null(),
-            }
-        })
-        .expect("Failed to create Skia <-> OpenGL interface");
-
-        let dctx = DirectContext::new_gl(Some(interface), None)
-            .expect("Failed to create Skia's direct context");
-
-        let fb_info = {
-            let mut fboid: gl::GLint = 0;
-            unsafe { gl::glGetIntegerv(gl::GL_FRAMEBUFFER_BINDING, &mut fboid) };
-
-            FramebufferInfo {
-                fboid: fboid.try_into().unwrap(),
-                format: gl::GL_RGBA8,
-            }
-        };
-
-        SkiaContext::new(dctx, fb_info, w, h)
-    };*/
-
 //    let mut display = display.with_skia(skia_ctx);
     let mut display = display.without_skia();
     let mut event_handler = (f.take().unwrap())();
@@ -660,8 +628,10 @@ where
     display.libx11.show_window(display.display, window);
     let (w, h) = display.libx11.query_window_size(display.display, window);
 
-    let proc_addr_getter=Box::new(move|_procname: &str|{
-        panic!("unsupported for now!!");
+    let get_procaddr = (egl_lib.eglGetProcAddress).expect("non-null function pointer");
+    let proc_addr_getter=Box::new(move|procname: &str|{
+        let name = std::ffi::CString::new(procname).unwrap();
+        get_procaddr(name.as_ptr()).unwrap() as *const c_void
     });
 
     tl_display::set_display(X11Display::new(&mut display, window, w, h, proc_addr_getter));
@@ -671,38 +641,6 @@ where
     }
 
     (display.libx11.XFlush)(display.display);
-
-    /*let skia_ctx = {
-        // Skia initialization on OpenGL ES
-        use skia_safe::gpu::{gl::FramebufferInfo, DirectContext};
-        use std::convert::TryInto;
-
-        let interface = skia_safe::gpu::gl::Interface::new_load_with(|proc| {
-            let name = std::ffi::CString::new(proc).unwrap();
-            let get_procaddr = (egl_lib.eglGetProcAddress).expect("non-null function pointer");
-
-            match (get_procaddr)(name.as_ptr() as _) {
-                Some(procaddr) => procaddr as *const libc::c_void,
-                None => std::ptr::null(),
-            }
-        })
-        .expect("Failed to create Skia <-> OpenGL ES interface");
-
-        let dctx = DirectContext::new_gl(Some(interface), None)
-            .expect("Failed to create Skia's direct context");
-
-        let fb_info = {
-            let mut fboid: gl::GLint = 0;
-            unsafe { gl::glGetIntegerv(gl::GL_FRAMEBUFFER_BINDING, &mut fboid) };
-
-            FramebufferInfo {
-                fboid: fboid.try_into().unwrap(),
-                format: gl::GL_RGBA8,
-            }
-        };
-
-        SkiaContext::new(dctx, fb_info, w, h)
-    };*/
 
     //let mut display = display.with_skia(skia_ctx);
     let mut display = display.without_skia();
