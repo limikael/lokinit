@@ -2,6 +2,7 @@
 /// Maybe something like this may in some public API some day?
 /// (important data from this struct is available through function like Context::screen_size)
 
+#[allow(dead_code)]
 pub(crate) struct NativeDisplayData {
     pub screen_width: i32,
     pub screen_height: i32,

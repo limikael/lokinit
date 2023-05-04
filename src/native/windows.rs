@@ -1,6 +1,3 @@
-use std::convert::TryInto;
-use std::ffi::c_void;
-
 use crate::{
     conf::Conf,
     event::{KeyMods, MouseButton},
