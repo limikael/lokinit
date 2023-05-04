@@ -42,7 +42,6 @@ ndk-sys = "0.2"
 objc = "0.2"
 
 [dev-dependencies]
-gl = "0.14.0"
 glam = { version = "0.14", features = ["scalar-math"] }
 skia-safe = { version = "0.60.0", features = ["gl"] }
 

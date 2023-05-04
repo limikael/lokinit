@@ -13,8 +13,8 @@ impl EventHandler for Stage {
 
     fn draw(&mut self) {
         unsafe {
-            ::gl::ClearColor(0.0, 0.25, 0.5, 0.0);
-            ::gl::Clear(::gl::COLOR_BUFFER_BIT);
+            gl::glClearColor(0.0, 0.25, 0.5, 0.0);
+            gl::glClear(gl::GL_COLOR_BUFFER_BIT);
         }
     }
 
@@ -42,7 +42,7 @@ fn main() {
             ..Default::default()
         },
         || {
-            ::gl::load_with(window::get_gl_proc_addr);
+            gl::load_gl_funcs(window::get_gl_proc_addr);
             Box::new(Stage { fullscreen: false })
         },
     );

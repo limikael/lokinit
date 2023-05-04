@@ -1,9 +1,7 @@
-use std::ffi::c_void;
-
 /// Most backends happened to have exactly the same fields in their *Display struct
 /// Maybe something like this may in some public API some day?
 /// (important data from this struct is available through function like Context::screen_size)
-#[allow(unused)]
+
 pub(crate) struct NativeDisplayData {
     pub screen_width: i32,
     pub screen_height: i32,
@@ -58,7 +56,7 @@ pub trait NativeDisplay: std::any::Any {
 
     fn as_any(&mut self) -> &mut dyn std::any::Any;
 
-    fn get_gl_proc_addr(&self, procname: &str) -> *const c_void;
+    fn get_gl_proc_addr(&self, procname: &str) -> Option<unsafe extern "C" fn()>;
 }
 
 pub mod module;

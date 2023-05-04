@@ -26,7 +26,13 @@ impl SkiaContext {
     }
 
     pub fn from_gl_loader() -> Self {
-        let interface = skia_safe::gpu::gl::Interface::new_load_with(window::get_gl_proc_addr)
+        let interface =
+            skia_safe::gpu::gl::Interface::new_load_with(
+                |procname| match window::get_gl_proc_addr(procname) {
+                    Some(proc) => proc as *const _,
+                    None => std::ptr::null(),
+                },
+            )
             .expect("Failed to create Skia <-> OpenGL interface");
 
         let dctx = DirectContext::new_gl(Some(interface), None)

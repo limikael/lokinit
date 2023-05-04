@@ -17,8 +17,6 @@ pub use event::*;
 
 pub use native::{gl, NativeDisplay};
 
-use std::ffi::c_void;
-
 use std::cell::RefCell;
 thread_local! {
     #[allow(clippy::type_complexity)]
@@ -152,8 +150,8 @@ pub mod window {
         with_native_display!(d, d.show_keyboard(show))
     }
 
-    pub fn get_gl_proc_addr(procname: &str) -> *const c_void {
-        with_native_display!(d, Some(d.get_gl_proc_addr(procname))).unwrap()
+    pub fn get_gl_proc_addr(procname: &str) -> Option<unsafe extern "C" fn()> {
+        with_native_display!(d, d.get_gl_proc_addr(procname))
     }
 }
 
