@@ -15,7 +15,7 @@ use crate::{
     event::EventHandler,
     gl,
     native::{egl, NativeDisplayData},
-    skia::SkiaContext,
+//    skia::SkiaContext,
 };
 
 pub struct WaylandDisplay {
@@ -77,7 +77,7 @@ impl crate::native::NativeDisplay for WaylandDisplay {
         self
     }
 
-    fn get_gl_proc_addr(&self, _procname: &str)->*const c_void {
+    fn get_gl_proc_addr(&self, procname: &str) -> Option<unsafe extern "C" fn()> {
         panic!("gl proc addr unimplemented for wayland");
     }
 }
@@ -118,7 +118,7 @@ pub mod tl_display {
 
 /// A thing to pass around within *void pointer of wayland's event handler
 struct WaylandPayload {
-    ctx: Option<(Box<dyn EventHandler>, SkiaContext)>,
+    ctx: Option<(Box<dyn EventHandler>/*, SkiaContext*/)>,
     client: LibWaylandClient,
     surface: *mut wl_surface,
 }
@@ -325,7 +325,7 @@ unsafe extern "C" fn xdg_toplevel_handle_configure(
                 decorations.resize(&mut display.client, width, height);
             }
         });
-        if let Some((ref mut event_handler, ref mut _skia_ctx)) = payload.ctx {
+        if let Some((ref mut event_handler/*, ref mut _skia_ctx*/)) = payload.ctx {
             // TODO: resize event needs a skia context
             event_handler.resize_event(/*skia_ctx,*/ width as _, height as _);
         }
@@ -485,7 +485,7 @@ where
             libegl.eglGetProcAddress.expect("non-null function pointer")(name.as_ptr() as _)
         });
 
-        let skia_ctx = {
+        /*let skia_ctx = {
             // Skia initialization on OpenGL ES
             use skia_safe::gpu::{gl::FramebufferInfo, DirectContext};
             use std::convert::TryInto;
@@ -514,7 +514,7 @@ where
             };
 
             SkiaContext::new(dctx, fb_info, conf.window_width, conf.window_height)
-        };
+        };*/
 
         if !display.decoration_manager.is_null() {
             let server_decoration: *mut extensions::xdg_decoration::zxdg_toplevel_decoration_v1 = wl_request_constructor!(
@@ -545,12 +545,12 @@ where
         tl_display::set_display(display);
 
         let event_handler = (f.take().unwrap())();
-        payload.ctx = Some((event_handler, skia_ctx));
+        payload.ctx = Some((event_handler/*, skia_ctx*/));
 
         while tl_display::with(|d| !d.closed) {
             (client.wl_display_dispatch_pending)(wdisplay);
 
-            if let Some((ref mut event_handler, ref mut _skia_ctx)) = payload.ctx {
+            if let Some((ref mut event_handler/*, ref mut _skia_ctx*/)) = payload.ctx {
                 event_handler.update(/*skia_ctx*/);
                 event_handler.draw(/*skia_ctx*/);
             }

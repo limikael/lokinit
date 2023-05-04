@@ -184,7 +184,7 @@ where
             conf::LinuxBackend::X11Only => {
                 native::linux_x11::run(&conf, f).expect("X11 backend failed")
             }
-            /*conf::LinuxBackend::WaylandOnly => {
+            conf::LinuxBackend::WaylandOnly => {
                 native::linux_wayland::run(&conf, f).expect("Wayland backend failed")
             }
             conf::LinuxBackend::X11WithWaylandFallback => {
@@ -198,7 +198,7 @@ where
                     eprintln!("Failed to initialize through wayland! Trying X11 instead");
                     native::linux_x11::run(&conf, f);
                 }
-            }*/
+            }
             _ => {
                 panic!("work in progress...")
             }

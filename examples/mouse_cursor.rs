@@ -10,6 +10,8 @@ impl EventHandler for Stage {
             gl::glClearColor(0.0, 0.25, 0.5, 0.0);
             gl::glClear(gl::GL_COLOR_BUFFER_BIT);
         }
+
+        std::thread::sleep(std::time::Duration::from_millis(1000));
     }
 
     fn char_event(&mut self, character: char, _: KeyMods, _: bool) {
@@ -39,7 +41,17 @@ impl EventHandler for Stage {
 }
 
 fn main() {
-    lokinit::start(conf::Conf::default(), || {
+    let conf=conf::Conf {
+        platform: conf::Platform {
+            //linux_x11_gl: lokinit::conf::LinuxX11Gl::GLXOnly,
+            //linux_x11_gl: lokinit::conf::LinuxX11Gl::EGLOnly,
+            linux_backend: lokinit::conf::LinuxBackend::WaylandOnly,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+
+    lokinit::start(conf, || {
         Box::new(Stage {})
     });
 }
