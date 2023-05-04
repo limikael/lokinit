@@ -4,6 +4,8 @@ use skia_safe::{
     Surface,
 };
 
+use crate::{gl, window};
+
 pub struct SkiaContext {
     pub(crate) fb_info: FramebufferInfo,
     pub surface: Surface,
@@ -19,6 +21,32 @@ impl SkiaContext {
             surface,
             dctx,
         }
+    }
+
+    pub fn from_gl_loader()->Self {
+        use std::convert::TryInto;
+
+        let interface = skia_safe::gpu::gl::Interface::new_load_with(window::get_gl_proc_addr)
+            .expect("Failed to create Skia <-> OpenGL interface");
+
+        let dctx = DirectContext::new_gl(Some(interface), None)
+            .expect("Failed to create Skia's direct context");
+
+        let fb_info = {
+            let mut fboid: gl::GLint = 0;
+            unsafe { gl::glGetIntegerv(gl::GL_FRAMEBUFFER_BINDING, &mut fboid) };
+
+            FramebufferInfo {
+                fboid: fboid.try_into().unwrap(),
+                format: gl::GL_RGBA8,
+            }
+        };
+
+        // TODO! This shouldn't be screen size, it should be window size,
+        // but there is currently no way to get it.
+        let (w,h)=window::screen_size();
+
+        SkiaContext::new(dctx, fb_info, w as i32, h as i32)
     }
 
     pub fn recreate_surface(&mut self, width: i32, height: i32) {

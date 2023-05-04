@@ -100,37 +100,8 @@ impl EventHandler for Stage {
 
 impl Stage {
     pub fn new()->Self {
-        //println!("addr: {:?}",window::get_gl_proc_addr("glDrawArrays"));
-
-        let skia_ctx = {
-            // Skia initialization on OpenGL
-            use skia_safe::gpu::{gl::FramebufferInfo, DirectContext};
-            use std::convert::TryInto;
-
-            let interface = skia_safe::gpu::gl::Interface::new_load_with(window::get_gl_proc_addr)
-            .expect("Failed to create Skia <-> OpenGL interface");
-
-            let dctx = DirectContext::new_gl(Some(interface), None)
-                .expect("Failed to create Skia's direct context");
-
-            let fb_info = {
-                let mut fboid: gl::GLint = 0;
-                unsafe { gl::glGetIntegerv(gl::GL_FRAMEBUFFER_BINDING, &mut fboid) };
-
-                FramebufferInfo {
-                    fboid: fboid.try_into().unwrap(),
-                    format: gl::GL_RGBA8,
-                }
-            };
-
-            // TODO! expose a way to get the window size
-            let (w,h)=(800,600);
-
-            SkiaContext::new(dctx, fb_info, w, h)
-        };
-
         Self {
-            skia_ctx,
+            skia_ctx: SkiaContext::from_gl_loader(),
             pointers: [
                 // pointers for fingers
                 Pointer::colored(0xff3737),
