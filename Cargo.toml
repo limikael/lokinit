@@ -15,10 +15,6 @@ categories = ["rendering::graphics-api"]
 # Optional log-rs like macros implementation
 # disabled by default
 log-impl = []
-skia = ["skia-safe"]
-
-[dependencies]
-skia-safe = { version = "0.60.0", features = ["gl"], optional=true}
 
 [target.'cfg(target_os = "linux")'.dependencies]
 libc = "0.2"
@@ -48,11 +44,7 @@ objc = "0.2"
 [dev-dependencies]
 gl = "0.14.0"
 glam = { version = "0.14", features = ["scalar-math"] }
-quad-rand = "0.1"
-
-[[example]]
-name = "skia"
-required-features=["skia"]
+skia-safe = { version = "0.60.0", features = ["gl"] }
 
 [package.metadata.android]
 # rust-skia does not support cross-compilation to Android on ARMv7.

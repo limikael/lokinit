@@ -172,47 +172,17 @@ pub trait EventHandler {
     fn resize_event(&mut self, _width: f32, _height: f32) {}
     fn mouse_motion_event(&mut self, _x: f32, _y: f32) {}
     fn mouse_wheel_event(&mut self, _x: f32, _y: f32) {}
-    fn mouse_button_down_event(
-        &mut self,
-        _button: MouseButton,
-        _x: f32,
-        _y: f32,
-    ) {
-    }
-    fn mouse_button_up_event(
-        &mut self,
-        _button: MouseButton,
-        _x: f32,
-        _y: f32,
-    ) {
-    }
+    fn mouse_button_down_event(&mut self, _button: MouseButton, _x: f32, _y: f32) {}
+    fn mouse_button_up_event(&mut self, _button: MouseButton, _x: f32, _y: f32) {}
 
-    fn char_event(
-        &mut self,
-        _character: char,
-        _keymods: KeyMods,
-        _repeat: bool,
-    ) {
-    }
+    fn char_event(&mut self, _character: char, _keymods: KeyMods, _repeat: bool) {}
 
-    fn key_down_event(
-        &mut self,
-        _keycode: KeyCode,
-        _keymods: KeyMods,
-        _repeat: bool,
-    ) {
-    }
+    fn key_down_event(&mut self, _keycode: KeyCode, _keymods: KeyMods, _repeat: bool) {}
 
     fn key_up_event(&mut self, _keycode: KeyCode, _keymods: KeyMods) {}
 
     ///  &mutDefault implementation emulates mouse clicks
-    fn touch_event(
-        &mut self,
-        phase: TouchPhase,
-        _id: u64,
-        x: f32,
-        y: f32,
-    ) {
+    fn touch_event(&mut self, phase: TouchPhase, _id: u64, x: f32, y: f32) {
         match phase {
             TouchPhase::Started => self.mouse_button_down_event(MouseButton::Left, x, y),
             TouchPhase::Moved => self.mouse_motion_event(x, y),

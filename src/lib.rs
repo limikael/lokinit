@@ -152,7 +152,7 @@ pub mod window {
         with_native_display!(d, d.show_keyboard(show))
     }
 
-    pub fn get_gl_proc_addr(procname: &str)->*const c_void {
+    pub fn get_gl_proc_addr(procname: &str) -> *const c_void {
         with_native_display!(d, Some(d.get_gl_proc_addr(procname))).unwrap()
     }
 }
@@ -201,7 +201,9 @@ where
                     native::linux_x11::run(&conf, f);
                 }
             }*/
-            _=>{panic!("work in progress...")}
+            _ => {
+                panic!("work in progress...")
+            }
         }
     }
 

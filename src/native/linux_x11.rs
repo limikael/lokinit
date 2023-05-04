@@ -9,15 +9,15 @@ mod libx11_ex;
 mod x_cursor;
 mod xi_input;
 
-use libx11::*;
-use std::ffi::c_void;
-use std::{collections::HashMap};
 use crate::{
     event::EventHandler,
     gl,
     native::{egl, NativeDisplayData},
     CursorIcon,
 };
+use libx11::*;
+use std::collections::HashMap;
+use std::ffi::c_void;
 
 pub struct Dummy;
 
@@ -30,7 +30,7 @@ pub struct X11Display {
     data: NativeDisplayData,
     empty_cursor: libx11::Cursor,
     cursor_cache: HashMap<CursorIcon, libx11::Cursor>,
-    proc_addr_getter: Box<dyn Fn(&str)->*const c_void>
+    proc_addr_getter: Box<dyn Fn(&str) -> *const c_void>,
 }
 
 /// part of X11 display that lives on a main loop
@@ -160,15 +160,19 @@ impl crate::native::NativeDisplay for X11Display {
         self
     }
 
-    fn get_gl_proc_addr(&self, procname: &str)->*const c_void {
+    fn get_gl_proc_addr(&self, procname: &str) -> *const c_void {
         (self.proc_addr_getter)(procname)
     }
 }
 
 impl X11Display {
-    pub unsafe fn new(display: &mut X11MainLoopData, 
-            window: Window, w: i32, h: i32, 
-            proc_addr_getter: Box<dyn Fn(&str)->*const c_void>) -> X11Display {
+    pub unsafe fn new(
+        display: &mut X11MainLoopData,
+        window: Window,
+        w: i32,
+        h: i32,
+        proc_addr_getter: Box<dyn Fn(&str) -> *const c_void>,
+    ) -> X11Display {
         X11Display {
             libx11: display.libx11.clone(),
             display: display.display,
@@ -186,7 +190,7 @@ impl X11Display {
                 dpi_scale: display.libx11.update_system_dpi(display.display),
                 ..Default::default()
             },
-            proc_addr_getter
+            proc_addr_getter,
         }
     }
     pub unsafe fn set_cursor_grab(&mut self, window: Window, grab: bool) {
@@ -432,9 +436,7 @@ impl X11MainLoopData {
                 == (self.libxi).xi_extension_opcode(&mut self.libx11, self.display) =>
             {
                 if (*event).xcookie.evtype == xi_input::XI_RawMotion {
-                    let (dx, dy) = self
-                        .libxi
-                        .read_cookie(&mut (*event).xcookie, self.display);
+                    let (dx, dy) = self.libxi.read_cookie(&mut (*event).xcookie, self.display);
                     event_handler.raw_mouse_motion(dx as f32, dy as f32);
                 }
             }
@@ -486,9 +488,8 @@ where
 
     let (w, h) = display.libx11.query_window_size(display.display, window);
 
-    let libgl=glx.libgl.clone();
-    let proc_addr_getter=Box::new(move|procname: &str|{
-
+    let libgl = glx.libgl.clone();
+    let proc_addr_getter = Box::new(move |procname: &str| {
         // unsure why this is needed, but if it isn't there skia will crash...
         if procname == "eglGetCurrentDisplay" {
             return std::ptr::null();
@@ -497,7 +498,13 @@ where
         libgl.get_procaddr(procname).unwrap() as *const c_void
     });
 
-    tl_display::set_display(X11Display::new(&mut display, window, w, h, proc_addr_getter));
+    tl_display::set_display(X11Display::new(
+        &mut display,
+        window,
+        w,
+        h,
+        proc_addr_getter,
+    ));
 
     if conf.fullscreen {
         tl_display::with(|d| d.set_fullscreen(window, true));
@@ -584,12 +591,18 @@ where
     let (w, h) = display.libx11.query_window_size(display.display, window);
 
     let get_procaddr = (egl_lib.eglGetProcAddress).expect("non-null function pointer");
-    let proc_addr_getter=Box::new(move|procname: &str|{
+    let proc_addr_getter = Box::new(move |procname: &str| {
         let name = std::ffi::CString::new(procname).unwrap();
         get_procaddr(name.as_ptr()).unwrap() as *const c_void
     });
 
-    tl_display::set_display(X11Display::new(&mut display, window, w, h, proc_addr_getter));
+    tl_display::set_display(X11Display::new(
+        &mut display,
+        window,
+        w,
+        h,
+        proc_addr_getter,
+    ));
 
     if conf.fullscreen {
         tl_display::with(|d| d.set_fullscreen(window, true));

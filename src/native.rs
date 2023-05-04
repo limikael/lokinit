@@ -58,7 +58,7 @@ pub trait NativeDisplay: std::any::Any {
 
     fn as_any(&mut self) -> &mut dyn std::any::Any;
 
-    fn get_gl_proc_addr(&self, procname: &str)->*const c_void;
+    fn get_gl_proc_addr(&self, procname: &str) -> *const c_void;
 }
 
 pub mod module;

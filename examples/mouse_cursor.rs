@@ -7,7 +7,7 @@ impl EventHandler for Stage {
 
     fn draw(&mut self) {
         unsafe {
-            ::gl::ClearColor(0.0,0.25,0.5,0.0);
+            ::gl::ClearColor(0.0, 0.25, 0.5, 0.0);
             ::gl::Clear(::gl::COLOR_BUFFER_BIT);
         }
     }

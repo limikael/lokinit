@@ -231,10 +231,8 @@ impl crate::native::NativeDisplay for WindowsDisplay {
         self
     }
 
-    fn get_gl_proc_addr(&self, procname: &str)->*const c_void {
-        unsafe {
-            self.get_proc_address(procname).unwrap() as *const c_void
-        }
+    fn get_gl_proc_addr(&self, procname: &str) -> *const c_void {
+        unsafe { self.get_proc_address(procname).unwrap() as *const c_void }
     }
 }
 
@@ -317,7 +315,7 @@ unsafe extern "system" fn win32_wndproc(
     }
     let &mut WindowPayload {
         ref mut event_handler,
-//        ref mut context,
+        //        ref mut context,
     } = &mut *(display_ptr as *mut WindowPayload);
 
     match umsg {
@@ -875,9 +873,7 @@ where
 
         let event_handler = f();
 
-        let mut p = WindowPayload {
-            event_handler,
-        };
+        let mut p = WindowPayload { event_handler };
         // well, technically this is UB and we are suppose to use *mut WindowPayload instead of &mut WindowPayload forever from now on...
         // so if there going to be some weird bugs someday in the future - check this out!
         SetWindowLongPtrA(wnd, GWLP_USERDATA, &mut p as *mut _ as isize);

@@ -1,11 +1,11 @@
 #![allow(clippy::unusual_byte_groupings)]
 
+use lokinit::conf::Platform;
 use lokinit::window::set_fullscreen;
 use lokinit::*;
-use lokinit::conf::Platform;
 
 struct Stage {
-    fullscreen: bool
+    fullscreen: bool,
 }
 
 impl EventHandler for Stage {
@@ -13,7 +13,7 @@ impl EventHandler for Stage {
 
     fn draw(&mut self) {
         unsafe {
-            ::gl::ClearColor(0.0,0.25,0.5,0.0);
+            ::gl::ClearColor(0.0, 0.25, 0.5, 0.0);
             ::gl::Clear(::gl::COLOR_BUFFER_BIT);
         }
     }
@@ -43,9 +43,7 @@ fn main() {
         },
         || {
             ::gl::load_with(window::get_gl_proc_addr);
-            Box::new(Stage { 
-                fullscreen: false
-            })
+            Box::new(Stage { fullscreen: false })
         },
     );
 }

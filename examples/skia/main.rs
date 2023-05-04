@@ -1,6 +1,7 @@
 #![allow(clippy::unusual_byte_groupings)]
 
 mod skia;
+
 use skia::SkiaContext;
 
 use lokinit::*;
@@ -28,29 +29,19 @@ const N_POINTERS: usize = 11;
 
 struct Stage {
     pointers: [Pointer; N_POINTERS],
-    skia_ctx: SkiaContext
+    skia_ctx: SkiaContext,
 }
 
 impl EventHandler for Stage {
     fn update(&mut self) {}
 
-    fn mouse_button_down_event(
-        &mut self,
-        _button: MouseButton,
-        x: f32,
-        y: f32,
-    ) {
+    fn mouse_button_down_event(&mut self, _button: MouseButton, x: f32, y: f32) {
         self.pointers[10].on = true;
         self.pointers[10].x = x;
         self.pointers[10].y = y;
     }
 
-    fn mouse_button_up_event(
-        &mut self,
-        _button: MouseButton,
-        _x: f32,
-        _y: f32,
-    ) {
+    fn mouse_button_up_event(&mut self, _button: MouseButton, _x: f32, _y: f32) {
         self.pointers[10].on = false;
     }
 
@@ -59,13 +50,7 @@ impl EventHandler for Stage {
         self.pointers[10].y = y;
     }
 
-    fn touch_event(
-        &mut self,
-        phase: TouchPhase,
-        id: u64,
-        x: f32,
-        y: f32,
-    ) {
+    fn touch_event(&mut self, phase: TouchPhase, id: u64, x: f32, y: f32) {
         let id = (id as usize).clamp(0, N_POINTERS - 2);
 
         match phase {
@@ -101,7 +86,7 @@ impl EventHandler for Stage {
 }
 
 impl Stage {
-    pub fn new()->Self {
+    pub fn new() -> Self {
         Self {
             skia_ctx: SkiaContext::from_gl_loader(),
             pointers: [
@@ -119,7 +104,7 @@ impl Stage {
                 // pointer for mouse
                 Pointer::colored(0xbbddff),
             ],
-        }        
+        }
     }
 }
 
@@ -203,8 +188,6 @@ fn main() {
             high_dpi: true,
             ..Default::default()
         },
-        || {
-            Box::new(Stage::new())
-        },
+        || Box::new(Stage::new()),
     );
 }

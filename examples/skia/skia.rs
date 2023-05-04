@@ -1,3 +1,5 @@
+use std::convert::TryInto;
+
 use skia_safe::{
     gpu::gl::FramebufferInfo,
     gpu::{BackendRenderTarget, DirectContext},
@@ -23,9 +25,7 @@ impl SkiaContext {
         }
     }
 
-    pub fn from_gl_loader()->Self {
-        use std::convert::TryInto;
-
+    pub fn from_gl_loader() -> Self {
         let interface = skia_safe::gpu::gl::Interface::new_load_with(window::get_gl_proc_addr)
             .expect("Failed to create Skia <-> OpenGL interface");
 
@@ -44,7 +44,7 @@ impl SkiaContext {
 
         // TODO! This shouldn't be screen size, it should be window size,
         // but there is currently no way to get it.
-        let (w,h)=window::screen_size();
+        let (w, h) = window::screen_size();
 
         SkiaContext::new(dctx, fb_info, w as i32, h as i32)
     }
