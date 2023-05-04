@@ -1,21 +1,21 @@
 #![allow(clippy::unusual_byte_groupings)]
 
-use lokinit::skia::SkiaContext;
 use lokinit::window::set_fullscreen;
 use lokinit::*;
 use lokinit::conf::Platform;
 
 struct Stage {
-    fullscreen: bool,
-    skia_ctx: SkiaContext
+    fullscreen: bool
 }
 
 impl EventHandler for Stage {
     fn update(&mut self) {}
 
     fn draw(&mut self) {
-        self.skia_ctx.surface.canvas().clear(0xff_ff84c6);
-        self.skia_ctx.dctx.flush(None);
+        unsafe {
+            ::gl::ClearColor(0.0,0.25,0.5,0.0);
+            ::gl::Clear(::gl::COLOR_BUFFER_BIT);
+        }
     }
 
     fn key_up_event(&mut self, keycode: KeyCode, _: KeyMods) {
@@ -41,9 +41,11 @@ fn main() {
             },
             ..Default::default()
         },
-        || Box::new(Stage { 
-            fullscreen: false,
-            skia_ctx: SkiaContext::from_gl_loader()
-        }),
+        || {
+            ::gl::load_with(window::get_gl_proc_addr);
+            Box::new(Stage { 
+                fullscreen: false
+            })
+        },
     );
 }

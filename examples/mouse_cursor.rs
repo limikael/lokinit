@@ -5,7 +5,12 @@ struct Stage {}
 impl EventHandler for Stage {
     fn update(&mut self) {}
 
-    fn draw(&mut self) {}
+    fn draw(&mut self) {
+        unsafe {
+            ::gl::ClearColor(0.0,0.25,0.5,0.0);
+            ::gl::Clear(::gl::COLOR_BUFFER_BIT);
+        }
+    }
 
     fn char_event(&mut self, character: char, _: KeyMods, _: bool) {
         match character {
@@ -34,5 +39,8 @@ impl EventHandler for Stage {
 }
 
 fn main() {
-    lokinit::start(conf::Conf::default(), || Box::new(Stage {}));
+    lokinit::start(conf::Conf::default(), || {
+        ::gl::load_with(window::get_gl_proc_addr);
+        Box::new(Stage {})
+    });
 }

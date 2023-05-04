@@ -15,13 +15,15 @@ categories = ["rendering::graphics-api"]
 # Optional log-rs like macros implementation
 # disabled by default
 log-impl = []
+skia = ["skia-safe"]
+
+[dependencies]
+skia-safe = { version = "0.60.0", features = ["gl"], optional=true}
 
 [target.'cfg(target_os = "linux")'.dependencies]
-skia-safe = { version = "0.60.0", features = ["gl"] }
 libc = "0.2"
 
 [target.'cfg(windows)'.dependencies]
-skia-safe = { version = "0.60.0", features = ["gl"] }
 winapi = { version = "0.3", features = [
     "wingdi",
     "winuser",
@@ -35,22 +37,22 @@ winapi = { version = "0.3", features = [
 ] }
 
 [target.'cfg(target_os = "android")'.dependencies]
-skia-safe = { version = "0.60.0", features = ["gl"] }
 libc = "0.2"
 ndk-sys = "0.2"
 
 [target.'cfg(any(target_os = "macos", target_os = "ios"))'.dependencies]
 # TODO: maybe replace "gl" with "metal" once we support it.
 # Having both "gl" and "metal" features prevents us from fetching prebuilt binaries, even when not compiling on MacOS.
-skia-safe = { version = "0.60.0", features = ["gl"] }
 objc = "0.2"
 
 [dev-dependencies]
+gl = "0.14.0"
 glam = { version = "0.14", features = ["scalar-math"] }
 quad-rand = "0.1"
 
 [[example]]
 name = "skia"
+required-features=["skia"]
 
 [package.metadata.android]
 # rust-skia does not support cross-compilation to Android on ARMv7.

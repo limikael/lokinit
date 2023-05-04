@@ -1,6 +1,8 @@
 #![allow(clippy::unusual_byte_groupings)]
 
-use lokinit::skia::SkiaContext;
+mod skia;
+use skia::SkiaContext;
+
 use lokinit::*;
 use skia_safe::canvas::{SaveLayerFlags, SaveLayerRec};
 use skia_safe::{image_filters, scalar, Canvas, Color, Paint, RRect, Rect};
