@@ -1,4 +1,4 @@
-use lokinit::{start, conf::Conf, EventHandler, window};
+use lokinit::{conf::Conf, start, window, EventHandler};
 
 struct Stage {}
 
@@ -16,12 +16,10 @@ impl EventHandler for Stage {
 fn main() {
     start(Conf::default(), || {
         // Initialize functions from the gl crate.
-        gl::load_with(
-            |procname| match window::get_gl_proc_addr(procname) {
-                Some(proc) => proc as *const _,
-                None => std::ptr::null(),
-            },
-        );
+        gl::load_with(|procname| match window::get_gl_proc_addr(procname) {
+            Some(proc) => proc as *const _,
+            None => std::ptr::null(),
+        });
 
         Box::new(Stage {})
     });

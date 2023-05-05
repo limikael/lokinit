@@ -1,7 +1,7 @@
 use crate::{
     event::{EventHandler, KeyCode, TouchPhase},
     native::egl::{self, LibEgl},
-    native::NativeDisplay
+    native::NativeDisplay,
 };
 
 use std::{cell::RefCell, ffi::CString, sync::mpsc, thread};
@@ -292,8 +292,7 @@ impl MainThreadState {
                     d.screen_width = width as _;
                     d.screen_height = height as _;
                 });
-                self.event_handler
-                    .resize_event(width as _, height as _);
+                self.event_handler.resize_event(width as _, height as _);
             }
             Message::Touch {
                 phase,
@@ -301,32 +300,22 @@ impl MainThreadState {
                 x,
                 y,
             } => {
-                self.event_handler
-                    .touch_event(phase, touch_id, x, y);
+                self.event_handler.touch_event(phase, touch_id, x, y);
             }
             Message::Character { character } => {
                 if let Some(character) = char::from_u32(character) {
-                    self.event_handler.char_event(
-                        character,
-                        Default::default(),
-                        false,
-                    );
+                    self.event_handler
+                        .char_event(character, Default::default(), false);
                 }
             }
             Message::KeyDown { keycode } => {
-                self.event_handler.key_down_event(
-                    keycode,
-                    Default::default(),
-                    false,
-                );
+                self.event_handler
+                    .key_down_event(keycode, Default::default(), false);
             }
             Message::KeyUp { keycode } => {
-                self.event_handler
-                    .key_up_event(keycode, Default::default());
+                self.event_handler.key_up_event(keycode, Default::default());
             }
-            Message::Pause => self
-                .event_handler
-                .window_minimized_event(),
+            Message::Pause => self.event_handler.window_minimized_event(),
             Message::Resume => {
                 if tl_display::with(|d| d.fullscreen) {
                     unsafe {
@@ -472,7 +461,7 @@ where
             screen_width,
             screen_height,
             fullscreen: conf.fullscreen,
-            get_procaddr
+            get_procaddr,
         };
 
         tl_display::set_display(display);

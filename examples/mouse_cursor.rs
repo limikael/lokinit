@@ -41,7 +41,7 @@ impl EventHandler for Stage {
 }
 
 fn main() {
-    let conf=conf::Conf {
+    let conf = conf::Conf {
         platform: conf::Platform {
             //linux_x11_gl: lokinit::conf::LinuxX11Gl::GLXOnly,
             //linux_x11_gl: lokinit::conf::LinuxX11Gl::EGLOnly,
@@ -51,7 +51,5 @@ fn main() {
         ..Default::default()
     };
 
-    lokinit::start(conf, || {
-        Box::new(Stage {})
-    });
+    lokinit::start(conf, || Box::new(Stage {}));
 }

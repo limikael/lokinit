@@ -497,13 +497,7 @@ where
         libgl.get_procaddr(procname)
     });
 
-    tl_display::set_display(X11Display::new(
-        &mut display,
-        window,
-        w,
-        h,
-        get_procaddr,
-    ));
+    tl_display::set_display(X11Display::new(&mut display, window, w, h, get_procaddr));
 
     if conf.fullscreen {
         tl_display::with(|d| d.set_fullscreen(window, true));
@@ -595,13 +589,7 @@ where
         egl_get_procaddr(name.as_ptr())
     });
 
-    tl_display::set_display(X11Display::new(
-        &mut display,
-        window,
-        w,
-        h,
-        get_procaddr,
-    ));
+    tl_display::set_display(X11Display::new(&mut display, window, w, h, get_procaddr));
 
     if conf.fullscreen {
         tl_display::with(|d| d.set_fullscreen(window, true));

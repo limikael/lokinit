@@ -42,8 +42,6 @@ fn main() {
             },
             ..Default::default()
         },
-        || {
-            Box::new(Stage { fullscreen: false })
-        },
+        || Box::new(Stage { fullscreen: false }),
     );
 }

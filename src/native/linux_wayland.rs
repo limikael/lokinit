@@ -376,7 +376,7 @@ where
             decorations: None,
             closed: false,
             data: Default::default(),
-            get_procaddr: None
+            get_procaddr: None,
         };
         (display.client.wl_proxy_add_listener)(
             registry,
@@ -489,7 +489,7 @@ where
             egl_get_procaddr(name.as_ptr())
         });
 
-        display.get_procaddr=Some(get_procaddr);
+        display.get_procaddr = Some(get_procaddr);
 
         if !display.decoration_manager.is_null() {
             let server_decoration: *mut extensions::xdg_decoration::zxdg_toplevel_decoration_v1 = wl_request_constructor!(
