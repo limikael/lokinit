@@ -1,8 +1,7 @@
 use crate::{
     event::{EventHandler, KeyCode, TouchPhase},
     native::egl::{self, LibEgl},
-    native::NativeDisplay,
-    skia::SkiaContext,
+    native::NativeDisplay
 };
 
 use std::{cell::RefCell, ffi::CString, sync::mpsc, thread};
@@ -103,6 +102,7 @@ struct AndroidDisplay {
     screen_width: f32,
     screen_height: f32,
     fullscreen: bool,
+    get_procaddr: Box<dyn Fn(&str) -> Option<unsafe extern "C" fn()>>,
 }
 
 mod tl_display {
@@ -174,6 +174,10 @@ impl NativeDisplay for AndroidDisplay {
     fn as_any(&mut self) -> &mut dyn std::any::Any {
         self
     }
+
+    fn get_gl_proc_addr(&self, procname: &str) -> Option<unsafe extern "C" fn()> {
+        (self.get_procaddr)(procname)
+    }
 }
 
 pub unsafe fn console_debug(msg: *const ::std::os::raw::c_char) {
@@ -224,7 +228,6 @@ struct MainThreadState {
     surface: egl::EGLSurface,
     window: *mut ndk_sys::ANativeWindow,
     event_handler: Box<dyn EventHandler>,
-    skia_ctx: SkiaContext,
     quit: bool,
 }
 
@@ -290,7 +293,7 @@ impl MainThreadState {
                     d.screen_height = height as _;
                 });
                 self.event_handler
-                    .resize_event(&mut self.skia_ctx, width as _, height as _);
+                    .resize_event(width as _, height as _);
             }
             Message::Touch {
                 phase,
@@ -299,12 +302,11 @@ impl MainThreadState {
                 y,
             } => {
                 self.event_handler
-                    .touch_event(&mut self.skia_ctx, phase, touch_id, x, y);
+                    .touch_event(phase, touch_id, x, y);
             }
             Message::Character { character } => {
                 if let Some(character) = char::from_u32(character) {
                     self.event_handler.char_event(
-                        &mut self.skia_ctx,
                         character,
                         Default::default(),
                         false,
@@ -313,7 +315,6 @@ impl MainThreadState {
             }
             Message::KeyDown { keycode } => {
                 self.event_handler.key_down_event(
-                    &mut self.skia_ctx,
                     keycode,
                     Default::default(),
                     false,
@@ -321,11 +322,11 @@ impl MainThreadState {
             }
             Message::KeyUp { keycode } => {
                 self.event_handler
-                    .key_up_event(&mut self.skia_ctx, keycode, Default::default());
+                    .key_up_event(keycode, Default::default());
             }
             Message::Pause => self
                 .event_handler
-                .window_minimized_event(&mut self.skia_ctx),
+                .window_minimized_event(),
             Message::Resume => {
                 if tl_display::with(|d| d.fullscreen) {
                     unsafe {
@@ -334,7 +335,7 @@ impl MainThreadState {
                     }
                 }
 
-                self.event_handler.window_restored_event(&mut self.skia_ctx)
+                self.event_handler.window_restored_event()
             }
             Message::Destroy => {
                 self.quit = true;
@@ -343,10 +344,10 @@ impl MainThreadState {
     }
 
     fn frame(&mut self) {
-        self.event_handler.update(&mut self.skia_ctx);
+        self.event_handler.update();
 
         if !self.surface.is_null() {
-            self.event_handler.draw(&mut self.skia_ctx);
+            self.event_handler.draw();
 
             unsafe {
                 (self.libegl.eglSwapBuffers.unwrap())(self.egl_display, self.surface);
@@ -461,45 +462,21 @@ where
             panic!();
         }
 
+        let egl_get_procaddr = (libegl.eglGetProcAddress).expect("non-null function pointer");
+        let get_procaddr = Box::new(move |procname: &str| {
+            let name = std::ffi::CString::new(procname).unwrap();
+            egl_get_procaddr(name.as_ptr())
+        });
+
         let display = AndroidDisplay {
             screen_width,
             screen_height,
             fullscreen: conf.fullscreen,
+            get_procaddr
         };
 
         tl_display::set_display(display);
         let event_handler = f.0();
-
-        let skia_ctx = {
-            // Skia initialization on OpenGL ES
-            use skia_safe::gpu::{gl::FramebufferInfo, DirectContext};
-            use std::convert::TryInto;
-
-            let interface = skia_safe::gpu::gl::Interface::new_load_with(|proc| {
-                let name = std::ffi::CString::new(proc).unwrap();
-                let get_proc_address = libegl.eglGetProcAddress.expect("non-null function pointer");
-                match get_proc_address(name.as_ptr() as _) {
-                    Some(procaddr) => procaddr as *const std::ffi::c_void,
-                    None => std::ptr::null(),
-                }
-            })
-            .expect("Failed to create Skia <-> OpenGL ES interface");
-
-            let dctx = DirectContext::new_gl(Some(interface), None)
-                .expect("Failed to create Skia's direct context");
-
-            let fb_info = {
-                let mut fboid: gl::GLint = 0;
-                gl::glGetIntegerv(gl::GL_FRAMEBUFFER_BINDING, &mut fboid);
-
-                FramebufferInfo {
-                    fboid: fboid.try_into().unwrap(),
-                    format: gl::GL_RGBA8,
-                }
-            };
-
-            SkiaContext::new(dctx, fb_info, screen_width as i32, screen_height as i32)
-        };
 
         let mut s = MainThreadState {
             libegl,
@@ -509,7 +486,6 @@ where
             surface,
             window,
             event_handler,
-            skia_ctx,
             quit: false,
         };
 
